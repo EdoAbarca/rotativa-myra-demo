@@ -48,6 +48,114 @@ export class EmployeesService {
       .exec();
   }
 
+  private async processRow(
+    row: ExcelJS.Row,
+    rowNumber: number,
+    headers: string[],
+    result: UploadResultDto,
+  ): Promise<void> {
+    const rowData: RowData = {};
+    try {
+      headers.forEach((header, index) => {
+        const cell = row.getCell(index + 1);
+        const value = cell.value;
+
+        // Handle date cells
+        if (value instanceof Date) {
+          rowData[header as keyof RowData] = value.toISOString().split('T')[0];
+        } else if (
+          typeof value === 'object' &&
+          value !== null &&
+          'result' in value
+        ) {
+          // Handle formula cells
+          const formulaValue = (value as { result: unknown }).result;
+          if (formulaValue !== null && formulaValue !== undefined) {
+            if (typeof formulaValue === 'object' && 'text' in formulaValue) {
+              rowData[header as keyof RowData] = String(
+                (formulaValue as { text: unknown }).text,
+              ).trim();
+            } else if (
+              typeof formulaValue === 'string' ||
+              typeof formulaValue === 'number' ||
+              typeof formulaValue === 'boolean'
+            ) {
+              rowData[header as keyof RowData] = String(formulaValue).trim();
+            } else {
+              rowData[header as keyof RowData] = '';
+            }
+          } else {
+            rowData[header as keyof RowData] = '';
+          }
+        } else if (value !== null && value !== undefined) {
+          if (typeof value === 'object' && 'text' in value) {
+            rowData[header as keyof RowData] = String(
+              (value as { text: unknown }).text,
+            ).trim();
+          } else if (
+            typeof value === 'string' ||
+            typeof value === 'number' ||
+            typeof value === 'boolean'
+          ) {
+            rowData[header as keyof RowData] = String(value).trim();
+          } else {
+            rowData[header as keyof RowData] = '';
+          }
+        } else {
+          rowData[header as keyof RowData] = '';
+        }
+      });
+
+      // Convert base_salary to number
+      if (rowData.base_salary) {
+        const salaryStr = String(rowData.base_salary).replace(/,/g, '');
+        rowData.base_salary = parseFloat(salaryStr);
+      }
+
+      // Create DTO instance for validation
+      const dto = plainToInstance(CreateEmployeeDto, rowData);
+      const validationErrors = await validate(dto);
+
+      if (validationErrors.length > 0) {
+        const errorMessages = validationErrors.map((error) => {
+          return Object.values(error.constraints || {}).join(', ');
+        });
+
+        result.errors.push({
+          row: rowNumber,
+          employee_id: rowData.employee_id,
+          errors: errorMessages,
+        });
+        result.errorCount++;
+        return;
+      }
+
+      // Check if employee exists
+      const existingEmployee = await this.findByEmployeeId(dto.employee_id);
+
+      if (existingEmployee) {
+        // Update existing employee
+        await this.update(dto.employee_id, dto);
+        result.updated++;
+      } else {
+        // Create new employee
+        await this.create(dto);
+        result.created++;
+      }
+
+      result.successCount++;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      result.errors.push({
+        row: rowNumber,
+        employee_id: rowData.employee_id || 'unknown',
+        errors: [errorMessage],
+      });
+      result.errorCount++;
+    }
+  }
+
   async processExcelUpload(buffer: Buffer): Promise<UploadResultDto> {
     const result: UploadResultDto = {
       success: false,
@@ -116,129 +224,24 @@ export class EmployeesService {
         );
       }
 
-      // Process each row
-      const promises: Promise<void>[] = [];
+      // Process each row with concurrency control
+      const rowsToProcess: { row: ExcelJS.Row; rowNumber: number }[] = [];
 
       worksheet.eachRow((row, rowNumber) => {
         // Skip header row
         if (rowNumber === 1) return;
-
-        const promise = (async () => {
-          const rowData: RowData = {};
-          try {
-            headers.forEach((header, index) => {
-              const cell = row.getCell(index + 1);
-              const value = cell.value;
-
-              // Handle date cells
-              if (value instanceof Date) {
-                rowData[header as keyof RowData] = value
-                  .toISOString()
-                  .split('T')[0];
-              } else if (
-                typeof value === 'object' &&
-                value !== null &&
-                'result' in value
-              ) {
-                // Handle formula cells
-                const formulaValue = (value as { result: unknown }).result;
-                if (formulaValue !== null && formulaValue !== undefined) {
-                  if (
-                    typeof formulaValue === 'object' &&
-                    'text' in formulaValue
-                  ) {
-                    rowData[header as keyof RowData] = String(
-                      (formulaValue as { text: unknown }).text,
-                    ).trim();
-                  } else if (
-                    typeof formulaValue === 'string' ||
-                    typeof formulaValue === 'number' ||
-                    typeof formulaValue === 'boolean'
-                  ) {
-                    rowData[header as keyof RowData] =
-                      String(formulaValue).trim();
-                  } else {
-                    rowData[header as keyof RowData] = '';
-                  }
-                } else {
-                  rowData[header as keyof RowData] = '';
-                }
-              } else if (value !== null && value !== undefined) {
-                if (typeof value === 'object' && 'text' in value) {
-                  rowData[header as keyof RowData] = String(
-                    (value as { text: unknown }).text,
-                  ).trim();
-                } else if (
-                  typeof value === 'string' ||
-                  typeof value === 'number' ||
-                  typeof value === 'boolean'
-                ) {
-                  rowData[header as keyof RowData] = String(value).trim();
-                } else {
-                  rowData[header as keyof RowData] = '';
-                }
-              } else {
-                rowData[header as keyof RowData] = '';
-              }
-            });
-
-            // Convert base_salary to number
-            if (rowData.base_salary) {
-              const salaryStr = String(rowData.base_salary).replace(/,/g, '');
-              rowData.base_salary = parseFloat(salaryStr);
-            }
-
-            // Create DTO instance for validation
-            const dto = plainToInstance(CreateEmployeeDto, rowData);
-            const validationErrors = await validate(dto);
-
-            if (validationErrors.length > 0) {
-              const errorMessages = validationErrors.map((error) => {
-                return Object.values(error.constraints || {}).join(', ');
-              });
-
-              result.errors.push({
-                row: rowNumber,
-                employee_id: rowData.employee_id,
-                errors: errorMessages,
-              });
-              result.errorCount++;
-              return;
-            }
-
-            // Check if employee exists
-            const existingEmployee = await this.findByEmployeeId(
-              dto.employee_id,
-            );
-
-            if (existingEmployee) {
-              // Update existing employee
-              await this.update(dto.employee_id, dto);
-              result.updated++;
-            } else {
-              // Create new employee
-              await this.create(dto);
-              result.created++;
-            }
-
-            result.successCount++;
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : 'Unknown error occurred';
-            result.errors.push({
-              row: rowNumber,
-              employee_id: rowData.employee_id || 'unknown',
-              errors: [errorMessage],
-            });
-            result.errorCount++;
-          }
-        })();
-
-        promises.push(promise);
+        rowsToProcess.push({ row, rowNumber });
       });
 
-      // Wait for all rows to be processed
-      await Promise.all(promises);
+      // Process rows in batches to avoid overwhelming the database
+      const BATCH_SIZE = 10; // Process 10 rows at a time
+      for (let i = 0; i < rowsToProcess.length; i += BATCH_SIZE) {
+        const batch = rowsToProcess.slice(i, i + BATCH_SIZE);
+        const batchPromises = batch.map(({ row, rowNumber }) =>
+          this.processRow(row, rowNumber, headers, result),
+        );
+        await Promise.all(batchPromises);
+      }
 
       result.success = result.errorCount === 0;
       result.message = result.success
