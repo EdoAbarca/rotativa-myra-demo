@@ -1,0 +1,64 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: rotativa-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: rotativa-myra
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - rotativa-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rotativa-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongodb:27017/rotativa-myra
+    depends_on:
+      - mongodb
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - rotativa-network
+    command: npm run start:dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: base
+    container_name: rotativa-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - rotativa-network
+    command: npm run dev
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  rotativa-network:
+    driver: bridge
