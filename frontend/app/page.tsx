@@ -32,6 +32,18 @@ export default function Home() {
           >
             Go to Attendance Dashboard
           </Link>
+          <Link
+            href="/absence-alerts"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-red-600 px-5 text-white transition-colors hover:bg-red-700 md:w-auto"
+          >
+            Absence Detection & Alerts
+          </Link>
+          <Link
+            href="/notification-preferences"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 text-white transition-colors hover:bg-green-700 md:w-auto"
+          >
+            Notification Preferences
+          </Link>
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <a
