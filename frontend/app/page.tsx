@@ -57,6 +57,12 @@ export default function Home() {
             💰 Salary Calculation Rules
           </Link>
           <Link
+            href="/payroll"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-pink-600 px-5 text-white transition-colors hover:bg-pink-700 md:w-auto"
+          >
+            📊 Monthly Payroll Generation
+          </Link>
+          <Link
             href="/notification-preferences"
             className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 text-white transition-colors hover:bg-green-700 md:w-auto"
           >
