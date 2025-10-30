@@ -104,13 +104,21 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
       // Prepare update data (exclude hire_date as it's historical data)
       const updateData: Record<string, unknown> = {};
-      if (editedEmployee.first_name !== employee?.first_name) updateData.first_name = editedEmployee.first_name;
-      if (editedEmployee.last_name !== employee?.last_name) updateData.last_name = editedEmployee.last_name;
-      if (editedEmployee.email !== employee?.email) updateData.email = editedEmployee.email;
-      if (editedEmployee.department !== employee?.department) updateData.department = editedEmployee.department;
-      if (editedEmployee.position !== employee?.position) updateData.position = editedEmployee.position;
-      if (editedEmployee.base_salary !== employee?.base_salary) updateData.base_salary = editedEmployee.base_salary;
-      if (editedEmployee.status !== employee?.status) updateData.status = editedEmployee.status;
+      const allowedFields: (keyof Employee)[] = [
+        'first_name',
+        'last_name',
+        'email',
+        'department',
+        'position',
+        'base_salary',
+        'status'
+      ];
+
+      allowedFields.forEach(field => {
+        if (editedEmployee[field] !== employee?.[field]) {
+          updateData[field] = editedEmployee[field];
+        }
+      });
 
       if (Object.keys(updateData).length === 0) {
         setIsEditing(false);
@@ -373,8 +381,11 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               {isEditing ? (
                 <input
                   type="number"
-                  value={editedEmployee.base_salary || ''}
-                  onChange={(e) => setEditedEmployee({ ...editedEmployee, base_salary: parseFloat(e.target.value) })}
+                  value={editedEmployee.base_salary ?? ''}
+                  onChange={(e) => setEditedEmployee({ 
+                    ...editedEmployee, 
+                    base_salary: e.target.value === '' ? undefined : parseFloat(e.target.value) 
+                  })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               ) : (

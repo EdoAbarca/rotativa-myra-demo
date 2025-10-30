@@ -64,21 +64,33 @@ export class EmployeesService {
   }
 
   async search(params: SearchEmployeesParams): Promise<Employee[]> {
-    const query: Record<string, any> = {};
+    const query: Record<string, unknown> = {};
+
+    // Helper function to escape special regex characters
+    const escapeRegex = (str: string): string => {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
 
     if (params.employee_id) {
-      query.employee_id = { $regex: params.employee_id, $options: 'i' };
+      query.employee_id = {
+        $regex: escapeRegex(params.employee_id),
+        $options: 'i',
+      };
     }
 
     if (params.name) {
+      const escapedName = escapeRegex(params.name);
       query.$or = [
-        { first_name: { $regex: params.name, $options: 'i' } },
-        { last_name: { $regex: params.name, $options: 'i' } },
+        { first_name: { $regex: escapedName, $options: 'i' } },
+        { last_name: { $regex: escapedName, $options: 'i' } },
       ];
     }
 
     if (params.department) {
-      query.department = { $regex: params.department, $options: 'i' };
+      query.department = {
+        $regex: escapeRegex(params.department),
+        $options: 'i',
+      };
     }
 
     if (params.status) {
