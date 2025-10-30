@@ -13,11 +13,14 @@ import {
   HttpCode,
   HttpStatus,
   ValidationPipe,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EmployeesService } from './employees.service';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { UploadResultDto } from './dto/upload-result.dto';
+import { QueryEmployeesDto } from './dto/query-employees.dto';
 
 @Controller('employees')
 export class EmployeesController {
@@ -25,21 +28,26 @@ export class EmployeesController {
 
   @Get()
   async findAll(
-    @Query('name') name?: string,
-    @Query('employee_id') employee_id?: string,
-    @Query('department') department?: string,
-    @Query('status') status?: string,
+    @Query(new ValidationPipe({ transform: true })) query: QueryEmployeesDto,
   ) {
-    // If any search parameters are provided, use search instead of findAll
-    if (name || employee_id || department || status) {
-      return this.employeesService.search({
-        name,
-        employee_id,
-        department,
-        status,
-      });
-    }
-    return this.employeesService.findAll();
+    return this.employeesService.findAllPaginated(query);
+  }
+
+  @Get('export')
+  async exportToExcel(
+    @Query(new ValidationPipe({ transform: true })) query: QueryEmployeesDto,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.employeesService.exportToExcel(query);
+
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename=employees-export-${Date.now()}.xlsx`,
+      'Content-Length': buffer.length,
+    });
+
+    res.send(buffer);
   }
 
   @Get(':id')

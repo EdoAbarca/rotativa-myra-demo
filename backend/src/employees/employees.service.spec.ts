@@ -33,6 +33,7 @@ describe('EmployeesService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
     findOneAndUpdate: jest.fn(),
+    countDocuments: jest.fn(),
     exec: jest.fn(),
     save: jest.fn(),
   };
@@ -549,6 +550,248 @@ describe('EmployeesService', () => {
       await expect(service.getAuditLogs('NONEXISTENT')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('findAllPaginated', () => {
+    it('should return paginated employees with default pagination', async () => {
+      const employees = [mockEmployee];
+      const query = {};
+
+      const sortMock = jest.fn().mockReturnThis();
+      const skipMock = jest.fn().mockReturnThis();
+      const limitMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+      const countExecMock = jest.fn().mockResolvedValue(1);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        skip: skipMock,
+        limit: limitMock,
+        exec: execMock,
+      });
+
+      mockModel.countDocuments.mockReturnValue({
+        exec: countExecMock,
+      });
+
+      const result = await service.findAllPaginated(query);
+
+      expect(result.data).toEqual(employees);
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      });
+      expect(mockModel.find).toHaveBeenCalledWith({});
+    });
+
+    it('should filter employees by department', async () => {
+      const employees = [mockEmployee];
+      const query = { department: 'Engineering' };
+
+      const sortMock = jest.fn().mockReturnThis();
+      const skipMock = jest.fn().mockReturnThis();
+      const limitMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+      const countExecMock = jest.fn().mockResolvedValue(1);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        skip: skipMock,
+        limit: limitMock,
+        exec: execMock,
+      });
+
+      mockModel.countDocuments.mockReturnValue({
+        exec: countExecMock,
+      });
+
+      const result = await service.findAllPaginated(query);
+
+      expect(result.data).toEqual(employees);
+      expect(mockModel.find).toHaveBeenCalledWith({
+        department: { $regex: 'Engineering', $options: 'i' },
+      });
+    });
+
+    it('should filter employees by position', async () => {
+      const employees = [mockEmployee];
+      const query = { position: 'Software Engineer' };
+
+      const sortMock = jest.fn().mockReturnThis();
+      const skipMock = jest.fn().mockReturnThis();
+      const limitMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+      const countExecMock = jest.fn().mockResolvedValue(1);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        skip: skipMock,
+        limit: limitMock,
+        exec: execMock,
+      });
+
+      mockModel.countDocuments.mockReturnValue({
+        exec: countExecMock,
+      });
+
+      const result = await service.findAllPaginated(query);
+
+      expect(result.data).toEqual(employees);
+      expect(mockModel.find).toHaveBeenCalledWith({
+        position: { $regex: 'Software Engineer', $options: 'i' },
+      });
+    });
+
+    it('should filter employees by status', async () => {
+      const employees = [mockEmployee];
+      const query = { status: 'active' };
+
+      const sortMock = jest.fn().mockReturnThis();
+      const skipMock = jest.fn().mockReturnThis();
+      const limitMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+      const countExecMock = jest.fn().mockResolvedValue(1);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        skip: skipMock,
+        limit: limitMock,
+        exec: execMock,
+      });
+
+      mockModel.countDocuments.mockReturnValue({
+        exec: countExecMock,
+      });
+
+      const result = await service.findAllPaginated(query);
+
+      expect(result.data).toEqual(employees);
+      expect(mockModel.find).toHaveBeenCalledWith({ status: 'active' });
+    });
+
+    it('should sort employees by name', async () => {
+      const employees = [mockEmployee];
+      const query = { sortBy: 'name', sortOrder: 'asc' };
+
+      const sortMock = jest.fn().mockReturnThis();
+      const skipMock = jest.fn().mockReturnThis();
+      const limitMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+      const countExecMock = jest.fn().mockResolvedValue(1);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        skip: skipMock,
+        limit: limitMock,
+        exec: execMock,
+      });
+
+      mockModel.countDocuments.mockReturnValue({
+        exec: countExecMock,
+      });
+
+      await service.findAllPaginated(query);
+
+      expect(sortMock).toHaveBeenCalledWith({ first_name: 1, last_name: 1 });
+    });
+
+    it('should sort employees by hire_date descending', async () => {
+      const employees = [mockEmployee];
+      const query = { sortBy: 'hire_date', sortOrder: 'desc' };
+
+      const sortMock = jest.fn().mockReturnThis();
+      const skipMock = jest.fn().mockReturnThis();
+      const limitMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+      const countExecMock = jest.fn().mockResolvedValue(1);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        skip: skipMock,
+        limit: limitMock,
+        exec: execMock,
+      });
+
+      mockModel.countDocuments.mockReturnValue({
+        exec: countExecMock,
+      });
+
+      await service.findAllPaginated(query);
+
+      expect(sortMock).toHaveBeenCalledWith({ hire_date: -1 });
+    });
+
+    it('should handle pagination correctly', async () => {
+      const employees = [mockEmployee];
+      const query = { page: 2, limit: 5 };
+
+      const sortMock = jest.fn().mockReturnThis();
+      const skipMock = jest.fn().mockReturnThis();
+      const limitMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+      const countExecMock = jest.fn().mockResolvedValue(15);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        skip: skipMock,
+        limit: limitMock,
+        exec: execMock,
+      });
+
+      mockModel.countDocuments.mockReturnValue({
+        exec: countExecMock,
+      });
+
+      const result = await service.findAllPaginated(query);
+
+      expect(skipMock).toHaveBeenCalledWith(5); // (page - 1) * limit = (2 - 1) * 5
+      expect(limitMock).toHaveBeenCalledWith(5);
+      expect(result.pagination.totalPages).toBe(3); // Math.ceil(15 / 5)
+    });
+  });
+
+  describe('exportToExcel', () => {
+    it('should export employees to Excel', async () => {
+      const employees = [mockEmployee];
+      const query = {};
+
+      const sortMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        exec: execMock,
+      });
+
+      const result = await service.exportToExcel(query);
+
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+      expect(mockModel.find).toHaveBeenCalledWith({});
+    });
+
+    it('should export filtered employees to Excel', async () => {
+      const employees = [mockEmployee];
+      const query = { department: 'Engineering', status: 'active' };
+
+      const sortMock = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(employees);
+
+      mockModel.find.mockReturnValue({
+        sort: sortMock,
+        exec: execMock,
+      });
+
+      const result = await service.exportToExcel(query);
+
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(mockModel.find).toHaveBeenCalledWith({
+        department: { $regex: 'Engineering', $options: 'i' },
+        status: 'active',
+      });
     });
   });
 });
