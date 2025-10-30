@@ -5,6 +5,7 @@ import { NotificationService } from './notification.service';
 import { AbsenceDetectionService } from './absence-detection.service';
 import { LateArrivalDetectionService } from './late-arrival-detection.service';
 import { RealtimeNotificationService } from './realtime-notification.service';
+import { EmailService } from './email.service';
 import {
   NotificationPreference,
   NotificationPreferenceSchema,
@@ -17,6 +18,10 @@ import {
   Notification,
   NotificationSchema,
 } from './schemas/notification.schema';
+import {
+  EmailLog,
+  EmailLogSchema,
+} from './schemas/email-log.schema';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { EmployeesModule } from '../employees/employees.module';
 
@@ -29,6 +34,7 @@ import { EmployeesModule } from '../employees/employees.module';
       },
       { name: AbsenceAlert.name, schema: AbsenceAlertSchema },
       { name: Notification.name, schema: NotificationSchema },
+      { name: EmailLog.name, schema: EmailLogSchema },
     ]),
     AttendanceModule,
     EmployeesModule,
@@ -39,12 +45,14 @@ import { EmployeesModule } from '../employees/employees.module';
     AbsenceDetectionService,
     LateArrivalDetectionService,
     RealtimeNotificationService,
+    EmailService,
   ],
   exports: [
     NotificationService,
     AbsenceDetectionService,
     LateArrivalDetectionService,
     RealtimeNotificationService,
+    EmailService,
   ],
 })
 export class NotificationsModule {}

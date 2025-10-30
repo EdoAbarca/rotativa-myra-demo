@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Late Arrival Alert</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header {
+      background-color: #f59e0b;
+      color: #ffffff;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .content {
+      padding: 30px;
+    }
+    .alert-box {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .employee-info {
+      background-color: #f9fafb;
+      padding: 20px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .employee-info h3 {
+      margin-top: 0;
+      color: #111827;
+      font-size: 16px;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .info-label {
+      font-weight: 600;
+      color: #6b7280;
+    }
+    .info-value {
+      color: #111827;
+    }
+    .late-highlight {
+      background-color: #fef3c7;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      color: #92400e;
+    }
+    .next-steps {
+      margin-top: 20px;
+      padding: 20px;
+      background-color: #eff6ff;
+      border-radius: 6px;
+    }
+    .next-steps h3 {
+      margin-top: 0;
+      color: #1e40af;
+      font-size: 16px;
+    }
+    .next-steps ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .next-steps li {
+      margin: 8px 0;
+      color: #374151;
+    }
+    .footer {
+      background-color: #f9fafb;
+      padding: 20px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    @media only screen and (max-width: 600px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+      .content {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⏰ Late Arrival Alert</h1>
+    </div>
+    
+    <div class="content">
+      <div class="alert-box">
+        <strong>Alert:</strong> An employee has arrived late to work.
+      </div>
+
+      <div class="employee-info">
+        <h3>Employee Information</h3>
+        <div class="info-row">
+          <span class="info-label">Employee Name:</span>
+          <span class="info-value">{{employee_name}}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Employee ID:</span>
+          <span class="info-value">{{employee_id}}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Date:</span>
+          <span class="info-value">{{date}}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Expected Time:</span>
+          <span class="info-value">{{expected_time}}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Actual Time:</span>
+          <span class="info-value">{{actual_time}}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Minutes Late:</span>
+          <span class="info-value"><span class="late-highlight">{{minutes_late}} minutes</span></span>
+        </div>
+      </div>
+
+      <div class="next-steps">
+        <h3>Recommended Next Steps</h3>
+        <ul>
+          <li>Review the employee's attendance pattern</li>
+          <li>Contact the employee if this is recurring</li>
+          <li>Check if there were any reported issues (traffic, emergency, etc.)</li>
+          <li>Document the late arrival in the employee's record</li>
+          <li>Follow company policy for late arrivals</li>
+        </ul>
+      </div>
+
+      <p>This is an automated notification. For more details, please log in to the Rotativa MYRA system.</p>
+    </div>
+
+    <div class="footer">
+      <p>&copy; 2025 Rotativa MYRA System. All rights reserved.</p>
+      <p style="font-size: 12px; margin-top: 10px;">
+        You are receiving this email because you have email notifications enabled for late arrival alerts.
+        To manage your notification preferences, please log in to the system.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

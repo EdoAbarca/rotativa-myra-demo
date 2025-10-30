@@ -7,6 +7,7 @@ import {
 } from './schemas/notification-preference.schema';
 import { UpdateNotificationPreferenceDto } from './dto/update-notification-preference.dto';
 import { RealtimeNotificationService } from './realtime-notification.service';
+import { EmailService } from './email.service';
 
 export interface NotificationPayload {
   employee_id: string;
@@ -25,6 +26,7 @@ export class NotificationService {
     private notificationPreferenceModel: Model<NotificationPreferenceDocument>,
     @Inject(forwardRef(() => RealtimeNotificationService))
     private realtimeNotificationService: RealtimeNotificationService,
+    private emailService: EmailService,
   ) {}
 
   async getPreferences(
@@ -86,9 +88,10 @@ export class NotificationService {
 
     // Send email notification
     if (preferences.email_enabled) {
-      result.email_sent = this.sendEmailNotification(
+      result.email_sent = await this.sendEmailNotification(
         preferences.email_address || `${user_id}@company.com`,
         payload,
+        user_id,
       );
     }
 
@@ -100,22 +103,28 @@ export class NotificationService {
     return result;
   }
 
-  private sendEmailNotification(
+  private async sendEmailNotification(
     email: string,
     payload: NotificationPayload,
-  ): boolean {
+    user_id?: string,
+  ): Promise<boolean> {
     try {
-      // Mock email sending for now - in production, integrate with email service like SendGrid, SES, etc.
-      this.logger.log(`Sending email to ${email}`);
-      this.logger.log(`Subject: Absence Alert - ${payload.employee_name}`);
-      this.logger.log(`Message: ${payload.message}`);
-      this.logger.log(
-        `Employee: ${payload.employee_name} (${payload.employee_id})`,
-      );
-      this.logger.log(`Date: ${payload.absence_date}`);
-      this.logger.log(`Type: ${payload.absence_type}`);
+      // Use real email service
+      await this.emailService.sendEmail({
+        to: email,
+        subject: `${payload.absence_type === 'late' ? 'Late Arrival' : 'Absence'} Alert - ${payload.employee_name}`,
+        template: payload.absence_type === 'late' ? 'late-arrival-alert' : 'absence-alert',
+        context: {
+          employee_id: payload.employee_id,
+          employee_name: payload.employee_name,
+          absence_date: payload.absence_date,
+          absence_type: payload.absence_type,
+          date: payload.absence_date,
+        },
+        user_id,
+      });
 
-      // Simulate email sending
+      this.logger.log(`Email queued for ${email}`);
       return true;
     } catch (error) {
       this.logger.error(`Failed to send email: ${error}`);
@@ -210,16 +219,20 @@ export class NotificationService {
 
       // Send email notification
       if (preferences.email_enabled) {
-        this.sendEmailNotification(
-          preferences.email_address || `${user_id}@company.com`,
-          {
+        await this.emailService.sendEmail({
+          to: preferences.email_address || `${user_id}@company.com`,
+          subject: `Late Arrival Alert - ${employee_name}`,
+          template: 'late-arrival-alert',
+          context: {
             employee_id,
             employee_name,
-            absence_date: date,
-            absence_type: 'late',
-            message,
+            date,
+            expected_time,
+            actual_time,
+            minutes_late,
           },
-        );
+          user_id,
+        });
       }
 
       // Send real-time in-app notification
