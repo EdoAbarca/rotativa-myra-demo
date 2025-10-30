@@ -3,6 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationsController } from './notifications.controller';
 import { NotificationService } from './notification.service';
 import { AbsenceDetectionService } from './absence-detection.service';
+import { LateArrivalDetectionService } from './late-arrival-detection.service';
+import { RealtimeNotificationService } from './realtime-notification.service';
 import {
   NotificationPreference,
   NotificationPreferenceSchema,
@@ -11,6 +13,10 @@ import {
   AbsenceAlert,
   AbsenceAlertSchema,
 } from './schemas/absence-alert.schema';
+import {
+  Notification,
+  NotificationSchema,
+} from './schemas/notification.schema';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { EmployeesModule } from '../employees/employees.module';
 
@@ -22,12 +28,23 @@ import { EmployeesModule } from '../employees/employees.module';
         schema: NotificationPreferenceSchema,
       },
       { name: AbsenceAlert.name, schema: AbsenceAlertSchema },
+      { name: Notification.name, schema: NotificationSchema },
     ]),
     AttendanceModule,
     EmployeesModule,
   ],
   controllers: [NotificationsController],
-  providers: [NotificationService, AbsenceDetectionService],
-  exports: [NotificationService, AbsenceDetectionService],
+  providers: [
+    NotificationService,
+    AbsenceDetectionService,
+    LateArrivalDetectionService,
+    RealtimeNotificationService,
+  ],
+  exports: [
+    NotificationService,
+    AbsenceDetectionService,
+    LateArrivalDetectionService,
+    RealtimeNotificationService,
+  ],
 })
 export class NotificationsModule {}

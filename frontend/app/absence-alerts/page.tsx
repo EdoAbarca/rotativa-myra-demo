@@ -34,6 +34,7 @@ export default function AbsenceAlertsPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [detecting, setDetecting] = useState(false);
+  const [detectingLate, setDetectingLate] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<AbsenceAlert | null>(null);
   const [updateForm, setUpdateForm] = useState({
     status: '',
@@ -115,6 +116,32 @@ export default function AbsenceAlertsPage() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setDetecting(false);
+    }
+  };
+
+  const detectLateArrivals = async () => {
+    try {
+      setDetectingLate(true);
+      setError(null);
+
+      const response = await fetch(`${API_URL}/notifications/detect-late-arrivals`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to detect late arrivals');
+      }
+
+      const result = await response.json();
+      alert(result.message);
+
+      // Refresh the lists
+      await fetchAlerts();
+      await fetchStatistics();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setDetectingLate(false);
     }
   };
 
@@ -200,6 +227,13 @@ export default function AbsenceAlertsPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {detecting ? 'Detecting...' : 'Detect Absences'}
+              </button>
+              <button
+                onClick={detectLateArrivals}
+                disabled={detectingLate}
+                className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {detectingLate ? 'Detecting...' : '⏰ Detect Late Arrivals'}
               </button>
               <Link
                 href="/"

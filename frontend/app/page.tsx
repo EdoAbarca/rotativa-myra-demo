@@ -44,6 +44,12 @@ export default function Home() {
           >
             Notification Preferences
           </Link>
+          <Link
+            href="/notifications"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-purple-600 px-5 text-white transition-colors hover:bg-purple-700 md:w-auto"
+          >
+            📢 Notification History
+          </Link>
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <a

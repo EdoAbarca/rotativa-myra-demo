@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { NotificationService } from './notification.service';
 import { NotificationPreference } from './schemas/notification-preference.schema';
+import { RealtimeNotificationService } from './realtime-notification.service';
 
 describe('NotificationService', () => {
   let service: NotificationService;
@@ -19,6 +20,10 @@ describe('NotificationService', () => {
     create: jest.fn(),
   };
 
+  const mockRealtimeNotificationService = {
+    sendRealTimeNotification: jest.fn().mockResolvedValue({}),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -26,6 +31,10 @@ describe('NotificationService', () => {
         {
           provide: getModelToken(NotificationPreference.name),
           useValue: mockModel,
+        },
+        {
+          provide: RealtimeNotificationService,
+          useValue: mockRealtimeNotificationService,
         },
       ],
     }).compile();
