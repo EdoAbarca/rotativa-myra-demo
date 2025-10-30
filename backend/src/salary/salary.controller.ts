@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Query,
   Param,
@@ -11,6 +12,8 @@ import {
 import { SalaryService } from './salary.service';
 import { CalculateSalaryDto, QuerySalaryDto } from './dto/salary.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
+import { UpdateHolidayDto } from './dto/update-holiday.dto';
+import { QueryHolidaysDto } from './dto/query-holidays.dto';
 
 @Controller('salary')
 export class SalaryController {
@@ -49,17 +52,51 @@ export class SalaryController {
       createHolidayDto.date,
       createHolidayDto.name,
       createHolidayDto.description,
+      createHolidayDto.is_paid,
+      createHolidayDto.is_recurring,
+      createHolidayDto.recurring_month,
+      createHolidayDto.recurring_day,
     );
   }
 
   @Get('holidays')
-  async getHolidays() {
-    return this.salaryService.getAllHolidays();
+  async getHolidays(@Query(ValidationPipe) query: QueryHolidaysDto) {
+    return this.salaryService.getAllHolidays(query);
+  }
+
+  @Get('holidays/:id')
+  async getHoliday(@Param('id') id: string) {
+    return this.salaryService.getHolidayById(id);
+  }
+
+  @Put('holidays/:id')
+  async updateHoliday(
+    @Param('id') id: string,
+    @Body(ValidationPipe) updateHolidayDto: UpdateHolidayDto,
+  ) {
+    return this.salaryService.updateHoliday(id, updateHolidayDto);
   }
 
   @Delete('holidays/:date')
   async deleteHoliday(@Param('date') date: string) {
     await this.salaryService.deleteHoliday(date);
     return { message: 'Holiday deleted successfully' };
+  }
+
+  @Delete('holidays/by-id/:id')
+  async deleteHolidayById(@Param('id') id: string) {
+    await this.salaryService.deleteHolidayById(id);
+    return { message: 'Holiday deleted successfully' };
+  }
+
+  @Post('holidays/generate/:year')
+  async generateRecurringHolidays(@Param('year') year: string) {
+    const yearNum = parseInt(year, 10);
+    const holidays =
+      await this.salaryService.generateRecurringHolidays(yearNum);
+    return {
+      message: `Generated ${holidays.length} recurring holidays for ${year}`,
+      holidays,
+    };
   }
 }

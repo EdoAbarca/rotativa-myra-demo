@@ -305,6 +305,10 @@ export class SalaryService {
     date: string,
     name: string,
     description?: string,
+    is_paid?: boolean,
+    is_recurring?: boolean,
+    recurring_month?: number,
+    recurring_day?: number,
   ): Promise<Holiday> {
     const holidayDate = new Date(date);
 
@@ -316,8 +320,20 @@ export class SalaryService {
     if (existing) {
       // Update existing holiday
       existing.name = name;
-      if (description) {
+      if (description !== undefined) {
         existing.description = description;
+      }
+      if (is_paid !== undefined) {
+        existing.is_paid = is_paid;
+      }
+      if (is_recurring !== undefined) {
+        existing.is_recurring = is_recurring;
+      }
+      if (recurring_month !== undefined) {
+        existing.recurring_month = recurring_month;
+      }
+      if (recurring_day !== undefined) {
+        existing.recurring_day = recurring_day;
       }
       return existing.save();
     }
@@ -327,23 +343,124 @@ export class SalaryService {
       date: holidayDate,
       name,
       description,
-      is_paid: true,
+      is_paid: is_paid !== undefined ? is_paid : true,
+      is_recurring: is_recurring || false,
+      recurring_month,
+      recurring_day,
     });
 
     return holiday.save();
   }
 
   /**
-   * Get all holidays
+   * Update an existing holiday by ID
    */
-  async getAllHolidays(): Promise<Holiday[]> {
-    return this.holidayModel.find().sort({ date: 1 }).exec();
+  async updateHoliday(
+    id: string,
+    updates: Partial<Holiday>,
+  ): Promise<Holiday | null> {
+    return this.holidayModel
+      .findByIdAndUpdate(id, updates, { new: true })
+      .exec();
   }
 
   /**
-   * Delete a holiday
+   * Get all holidays with optional filtering
+   */
+  async getAllHolidays(filters?: {
+    start_date?: string;
+    end_date?: string;
+    is_recurring?: boolean;
+    is_paid?: boolean;
+  }): Promise<Holiday[]> {
+    const query: Record<string, any> = {};
+
+    if (filters?.start_date || filters?.end_date) {
+      query.date = {};
+      if (filters.start_date) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        query.date.$gte = new Date(filters.start_date);
+      }
+      if (filters.end_date) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        query.date.$lte = new Date(filters.end_date);
+      }
+    }
+
+    if (filters?.is_recurring !== undefined) {
+      query.is_recurring = filters.is_recurring;
+    }
+
+    if (filters?.is_paid !== undefined) {
+      query.is_paid = filters.is_paid;
+    }
+
+    return this.holidayModel.find(query).sort({ date: 1 }).exec();
+  }
+
+  /**
+   * Get a single holiday by ID
+   */
+  async getHolidayById(id: string): Promise<Holiday | null> {
+    return this.holidayModel.findById(id).exec();
+  }
+
+  /**
+   * Delete a holiday by date
    */
   async deleteHoliday(date: string): Promise<void> {
     await this.holidayModel.deleteOne({ date: new Date(date) }).exec();
+  }
+
+  /**
+   * Delete a holiday by ID
+   */
+  async deleteHolidayById(id: string): Promise<void> {
+    await this.holidayModel.findByIdAndDelete(id).exec();
+  }
+
+  /**
+   * Generate recurring holidays for a given year
+   * This creates instances of recurring holidays for the specified year
+   */
+  async generateRecurringHolidays(year: number): Promise<Holiday[]> {
+    // Get all recurring holidays
+    const recurringHolidays = await this.holidayModel
+      .find({ is_recurring: true })
+      .exec();
+
+    const generatedHolidays: Holiday[] = [];
+
+    for (const recurringHoliday of recurringHolidays) {
+      if (recurringHoliday.recurring_month && recurringHoliday.recurring_day) {
+        // Create the date for this year
+        const holidayDate = new Date(
+          year,
+          recurringHoliday.recurring_month - 1, // Month is 0-indexed
+          recurringHoliday.recurring_day,
+        );
+
+        // Check if this holiday already exists for this date
+        const exists = await this.holidayModel
+          .findOne({ date: holidayDate })
+          .exec();
+
+        if (!exists) {
+          // Create the holiday for this year
+          const newHoliday = new this.holidayModel({
+            date: holidayDate,
+            name: recurringHoliday.name,
+            description: recurringHoliday.description,
+            is_paid: recurringHoliday.is_paid,
+            is_recurring: false, // The generated instance is not recurring
+          });
+
+          const saved = await newHoliday.save();
+          generatedHolidays.push(saved);
+        }
+      }
+    }
+
+    return generatedHolidays;
   }
 }
