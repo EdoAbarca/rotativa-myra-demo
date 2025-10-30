@@ -55,7 +55,7 @@ Holidays are automatically integrated with the salary calculation engine:
 }
 ```
 
-**Note**: The `date` field is no longer unique to allow multiple holiday instances (e.g., Christmas 2025 and Christmas 2026).
+**Note**: The `date` field is no longer unique to allow multiple holiday instances. This design change supports the recurring holiday feature where the same holiday (like Christmas) needs to exist for multiple years while maintaining separate database records for each instance (e.g., Christmas 2025, Christmas 2026, Christmas 2027, etc.).
 
 ## API Endpoints
 
@@ -74,7 +74,7 @@ Body: {
   recurring_day?: number (1-31)
 }
 ```
-Creates a new holiday or updates an existing one if the date matches.
+Creates a new holiday. If a holiday already exists for the same date, it updates that holiday's information instead of creating a duplicate. This behavior is maintained for backward compatibility but is primarily used for one-time holidays. For recurring holidays, use the generate endpoint to create instances for specific years.
 
 #### Get Holidays
 ```
@@ -230,7 +230,7 @@ All tests pass (186 total):
 4. Update holiday information
 5. Delete holidays by ID
 6. Verify holiday exclusion from absence deductions
-7. Verify no duplicate generation
+7. Verify that generating recurring holidays for the same year twice does not create duplicate entries
 
 ## Usage Examples
 
@@ -335,20 +335,21 @@ curl "http://localhost:3001/salary/holidays?start_date=2025-01-01&end_date=2025-
 ### Performance Considerations:
 - Indexed date field for fast queries
 - Efficient filtering at database level
-- Pagination support (currently showing all)
+- Currently loads all holidays (pagination can be added as a future enhancement if needed)
 - Optimized calendar rendering
 
 ## Future Enhancements
 
 Potential improvements for future iterations:
-1. **Bulk Import**: Import holidays from CSV or calendar files
-2. **Holiday Templates**: Pre-defined holiday sets by country/region
-3. **Notifications**: Alerts for upcoming holidays
-4. **Employee View**: Public calendar view for employees
-5. **Approval Workflow**: Require approval for holiday additions
-6. **Holiday Reports**: Analytics on holiday usage and impact
-7. **Integration**: Sync with external calendar systems (Google Calendar, Outlook)
-8. **Multi-Year Generation**: Generate recurring holidays for multiple years at once
+1. **Pagination**: Add pagination for holiday list if the number of holidays grows large
+2. **Bulk Import**: Import holidays from CSV or calendar files
+3. **Holiday Templates**: Pre-defined holiday sets by country/region
+4. **Notifications**: Alerts for upcoming holidays
+5. **Employee View**: Public calendar view for employees
+6. **Approval Workflow**: Require approval for holiday additions
+7. **Holiday Reports**: Analytics on holiday usage and impact
+8. **Integration**: Sync with external calendar systems (Google Calendar, Outlook)
+9. **Multi-Year Generation**: Generate recurring holidays for multiple years at once
 
 ## Screenshots
 
