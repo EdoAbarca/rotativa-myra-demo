@@ -12,7 +12,7 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { AttendanceService } from './attendance.service';
 import { UploadAttendanceResultDto } from './dto/upload-attendance-result.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
