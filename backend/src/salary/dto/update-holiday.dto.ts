@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsDateString,
   IsOptional,
   IsBoolean,
   IsInt,
@@ -8,12 +7,10 @@ import {
   Max,
 } from 'class-validator';
 
-export class CreateHolidayDto {
-  @IsDateString()
-  date: string;
-
+export class UpdateHolidayDto {
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
   @IsOptional()
   @IsString()

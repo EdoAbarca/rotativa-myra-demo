@@ -25,6 +25,9 @@ describe('SalaryService', () => {
   const mockHolidayModel = {
     find: jest.fn(),
     findOne: jest.fn(),
+    findById: jest.fn(),
+    findByIdAndUpdate: jest.fn(),
+    findByIdAndDelete: jest.fn(),
     deleteOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
@@ -526,6 +529,225 @@ describe('SalaryService', () => {
       expect(mockHolidayModel.deleteOne).toHaveBeenCalledWith({
         date: new Date('2025-12-25'),
       });
+    });
+
+    it('should create recurring holiday', async () => {
+      const holidayData = {
+        date: new Date('2025-12-25'),
+        name: 'Christmas',
+        description: 'Christmas Day',
+        is_paid: true,
+        is_recurring: true,
+        recurring_month: 12,
+        recurring_day: 25,
+      };
+
+      const mockSave = jest.fn().mockResolvedValue(holidayData);
+      const HolidayConstructor: any = jest
+        .fn()
+        .mockImplementation((data: any) => ({
+          ...data,
+          save: mockSave,
+        }));
+
+      HolidayConstructor.findOne = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      service['holidayModel'] = HolidayConstructor;
+
+      const result = await service.createHoliday(
+        '2025-12-25',
+        'Christmas',
+        'Christmas Day',
+        true,
+        true,
+        12,
+        25,
+      );
+
+      expect(mockSave).toHaveBeenCalled();
+      expect(result.is_recurring).toBe(true);
+      expect(result.recurring_month).toBe(12);
+      expect(result.recurring_day).toBe(25);
+    });
+
+    it('should filter holidays by date range', async () => {
+      const holidays = [
+        { date: new Date('2025-12-25'), name: 'Christmas' },
+        { date: new Date('2025-01-01'), name: 'New Year' },
+      ];
+
+      mockHolidayModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(holidays),
+        }),
+      });
+
+      const result = await service.getAllHolidays({
+        start_date: '2025-01-01',
+        end_date: '2025-12-31',
+      });
+
+      expect(mockHolidayModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          date: {
+            $gte: new Date('2025-01-01'),
+            $lte: new Date('2025-12-31'),
+          },
+        }),
+      );
+      expect(result).toEqual(holidays);
+    });
+
+    it('should filter holidays by is_recurring', async () => {
+      const holidays = [
+        {
+          date: new Date('2025-12-25'),
+          name: 'Christmas',
+          is_recurring: true,
+        },
+      ];
+
+      mockHolidayModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(holidays),
+        }),
+      });
+
+      await service.getAllHolidays({ is_recurring: true });
+
+      expect(mockHolidayModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          is_recurring: true,
+        }),
+      );
+    });
+
+    it('should generate recurring holidays for a year', async () => {
+      const recurringHoliday = {
+        name: 'Christmas',
+        description: 'Christmas Day',
+        is_paid: true,
+        is_recurring: true,
+        recurring_month: 12,
+        recurring_day: 25,
+      };
+
+      const mockSave = jest.fn().mockResolvedValue({
+        date: new Date(2025, 11, 25),
+        name: 'Christmas',
+        description: 'Christmas Day',
+        is_paid: true,
+        is_recurring: false,
+      });
+
+      const HolidayConstructor: any = jest
+        .fn()
+        .mockImplementation((data: any) => ({
+          ...data,
+          save: mockSave,
+        }));
+
+      // Add find method to the constructor for recurring holidays
+      HolidayConstructor.find = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([recurringHoliday]),
+      });
+
+      // Add findOne method to check if holiday exists
+      HolidayConstructor.findOne = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      service['holidayModel'] = HolidayConstructor;
+
+      const result = await service.generateRecurringHolidays(2025);
+
+      expect(mockSave).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Christmas');
+      expect(result[0].is_recurring).toBe(false);
+    });
+
+    it('should not duplicate existing holidays when generating recurring', async () => {
+      const recurringHoliday = {
+        name: 'Christmas',
+        is_paid: true,
+        is_recurring: true,
+        recurring_month: 12,
+        recurring_day: 25,
+      };
+
+      const HolidayConstructor: any = jest.fn();
+
+      // Mock finding recurring holidays
+      HolidayConstructor.find = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([recurringHoliday]),
+      });
+
+      // Mock that holiday already exists
+      HolidayConstructor.findOne = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          date: new Date(2025, 11, 25),
+          name: 'Christmas',
+        }),
+      });
+
+      service['holidayModel'] = HolidayConstructor;
+
+      const result = await service.generateRecurringHolidays(2025);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should update a holiday by ID', async () => {
+      const updatedHoliday = {
+        name: 'Updated Christmas',
+        description: 'Updated description',
+      };
+
+      mockHolidayModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedHoliday),
+      });
+
+      const result = await service.updateHoliday('holiday-id-123', {
+        name: 'Updated Christmas',
+      });
+
+      expect(mockHolidayModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'holiday-id-123',
+        { name: 'Updated Christmas' },
+        { new: true },
+      );
+      expect(result).toEqual(updatedHoliday);
+    });
+
+    it('should get a holiday by ID', async () => {
+      const holiday = {
+        date: new Date('2025-12-25'),
+        name: 'Christmas',
+      };
+
+      mockHolidayModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(holiday),
+      });
+
+      const result = await service.getHolidayById('holiday-id-123');
+
+      expect(mockHolidayModel.findById).toHaveBeenCalledWith('holiday-id-123');
+      expect(result).toEqual(holiday);
+    });
+
+    it('should delete a holiday by ID', async () => {
+      mockHolidayModel.findByIdAndDelete.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(undefined),
+      });
+
+      await service.deleteHolidayById('holiday-id-123');
+
+      expect(mockHolidayModel.findByIdAndDelete).toHaveBeenCalledWith(
+        'holiday-id-123',
+      );
     });
   });
 });
