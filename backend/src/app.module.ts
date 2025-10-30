@@ -6,6 +6,7 @@ import { EmployeesModule } from './employees/employees.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SalaryModule } from './salary/salary.module';
+import { LeavesModule } from './leaves/leaves.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SalaryModule } from './salary/salary.module';
     AttendanceModule,
     NotificationsModule,
     SalaryModule,
+    LeavesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
