@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { API_URL } from '../lib/constants';
 
 interface Notification {
   id: string;
@@ -17,14 +18,20 @@ interface NotificationToastProps {
   userId: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
 export default function NotificationToast({ userId }: NotificationToastProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dismissTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const connectToStream = useCallback(() => {
+    // Clear any pending reconnection
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     // Close existing connection if any
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
@@ -49,26 +56,47 @@ export default function NotificationToast({ userId }: NotificationToastProps) {
         setNotifications((prev) => [notification, ...prev]);
 
         // Auto-remove after 10 seconds
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           setNotifications((prev) =>
             prev.filter((n) => n.id !== notification.id),
           );
+          dismissTimeoutsRef.current.delete(notification.id);
         }, 10000);
+        
+        dismissTimeoutsRef.current.set(notification.id, timeoutId);
       } catch (error) {
         console.error('Error parsing notification:', error);
       }
     };
 
-    eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
+    eventSource.onerror = () => {
       setIsConnected(false);
       eventSource.close();
 
-      // Attempt to reconnect after 5 seconds
-      setTimeout(() => {
+      // Attempt to reconnect after 5 seconds - use arrow function to avoid ref issues
+      reconnectTimeoutRef.current = setTimeout(() => {
         console.log('Attempting to reconnect...');
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        connectToStream();
+        // Call directly since we're already in the callback scope
+        const reconnect = () => {
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+          }
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+          }
+          const newEventSource = new EventSource(
+            `${API_URL}/notifications/stream/${userId}`,
+          );
+          newEventSource.onopen = () => {
+            console.log('SSE connection re-established');
+            setIsConnected(true);
+          };
+          newEventSource.onmessage = eventSource.onmessage;
+          newEventSource.onerror = eventSource.onerror;
+          eventSourceRef.current = newEventSource;
+        };
+        reconnect();
       }, 5000);
     };
 
@@ -79,14 +107,29 @@ export default function NotificationToast({ userId }: NotificationToastProps) {
     connectToStream();
 
     return () => {
+      // Clean up on unmount
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      // Clear all dismiss timeouts
+      const timeouts = dismissTimeoutsRef.current;
+      timeouts.forEach((timeout) => clearTimeout(timeout));
+      timeouts.clear();
     };
   }, [connectToStream]);
 
   const dismissNotification = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    
+    // Clear the auto-dismiss timeout
+    const timeout = dismissTimeoutsRef.current.get(id);
+    if (timeout) {
+      clearTimeout(timeout);
+      dismissTimeoutsRef.current.delete(id);
+    }
   };
 
   const getSeverityColor = (severity?: string) => {

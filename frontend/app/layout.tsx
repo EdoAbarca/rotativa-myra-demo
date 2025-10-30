@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NotificationToast from "./components/NotificationToast";
+import { DEFAULT_USER_ID } from "./lib/constants";
 
 export const metadata: Metadata = {
   title: "Rotativa Myra Demo",
@@ -16,7 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         {children}
-        <NotificationToast userId="hr_admin" />
+        <NotificationToast userId={DEFAULT_USER_ID} />
       </body>
     </html>
   );

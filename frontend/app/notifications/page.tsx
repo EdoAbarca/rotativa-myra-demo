@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { DEFAULT_USER_ID, API_URL } from '../lib/constants';
 
 interface Notification {
   _id: string;
@@ -23,10 +24,8 @@ interface NotificationStats {
   by_severity: Record<string, number>;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
 export default function NotificationsPage() {
-  const [userId] = useState('hr_admin');
+  const [userId] = useState(DEFAULT_USER_ID);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [loading, setLoading] = useState(true);
