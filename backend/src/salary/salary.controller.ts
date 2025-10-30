@@ -161,9 +161,7 @@ export class SalaryController {
 
   // Payroll endpoints
   @Post('payroll/generate')
-  async generatePayroll(
-    @Body(ValidationPipe) generateDto: GeneratePayrollDto,
-  ) {
+  async generatePayroll(@Body(ValidationPipe) generateDto: GeneratePayrollDto) {
     return this.payrollService.generatePayroll(generateDto);
   }
 
@@ -190,14 +188,14 @@ export class SalaryController {
       parseInt(month),
       parseInt(year),
     );
-    
+
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename=payroll-${year}-${month}.xlsx`,
       'Content-Length': buffer.length,
     });
-    
+
     res.send(buffer);
   }
 

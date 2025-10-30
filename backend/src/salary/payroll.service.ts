@@ -86,7 +86,10 @@ export class PayrollService {
           hasIncompleteData = true;
         }
 
-        if (salaryCalculation.absent_days > salaryCalculation.working_days_in_period / 2) {
+        if (
+          salaryCalculation.absent_days >
+          salaryCalculation.working_days_in_period / 2
+        ) {
           warnings.push('High absence rate detected');
         }
 
@@ -122,7 +125,9 @@ export class PayrollService {
         totalPayroll += salaryCalculation.total_salary;
       } catch (error) {
         // If calculation fails for an employee, add with error warning
-        const warnings = [`Failed to calculate salary: ${error.message}`];
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        const warnings = [`Failed to calculate salary: ${errorMessage}`];
         employeeEntries.push({
           employee_id: employee.employee_id,
           employee_name: `${employee.first_name} ${employee.last_name}`,
@@ -192,6 +197,7 @@ export class PayrollService {
     const { month, year, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: any = {};
     if (month) filter.month = month;
     if (year) filter.year = year;
@@ -276,12 +282,18 @@ export class PayrollService {
       });
 
       // Format currency cells
-      ['base_salary', 'daily_rate', 'hourly_rate', 'base_earned', 'overtime_earned', 'deductions', 'total_salary'].forEach(
-        (key) => {
-          const cell = row.getCell(key);
-          cell.numFmt = '$#,##0.00';
-        },
-      );
+      [
+        'base_salary',
+        'daily_rate',
+        'hourly_rate',
+        'base_earned',
+        'overtime_earned',
+        'deductions',
+        'total_salary',
+      ].forEach((key) => {
+        const cell = row.getCell(key);
+        cell.numFmt = '$#,##0.00';
+      });
 
       // Highlight rows with warnings
       if (entry.has_incomplete_data) {
@@ -299,10 +311,10 @@ export class PayrollService {
     worksheet.addRow([]);
     const summaryStartRow = worksheet.lastRow?.number || 1;
     const summaryRow = summaryStartRow + 1;
-    
+
     worksheet.addRow(['Summary']);
     worksheet.getRow(summaryRow).font = { bold: true, size: 14 };
-    
+
     worksheet.addRow(['Total Employees:', payroll.total_employees]);
     worksheet.addRow([
       'Employees with Incomplete Data:',

@@ -97,7 +97,11 @@ export class Payroll {
   @Prop({ type: String })
   notes?: string;
 
-  @Prop({ type: String, enum: ['draft', 'finalized', 'paid'], default: 'finalized' })
+  @Prop({
+    type: String,
+    enum: ['draft', 'finalized', 'paid'],
+    default: 'finalized',
+  })
   status: string;
 }
 
