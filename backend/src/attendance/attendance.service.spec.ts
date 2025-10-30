@@ -27,6 +27,7 @@ describe('AttendanceService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
     findOneAndUpdate: jest.fn(),
+    countDocuments: jest.fn(),
     exec: jest.fn(),
   };
 
@@ -39,6 +40,9 @@ describe('AttendanceService', () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return instance;
   });
+
+  // Add model static methods to the constructor
+  Object.assign(mockModelConstructor, mockModel);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -56,9 +60,6 @@ describe('AttendanceService', () => {
     }).compile();
 
     service = module.get<AttendanceService>(AttendanceService);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const model = module.get(getModelToken(Attendance.name));
-    Object.assign(model, mockModel);
   });
 
   afterEach(() => {
@@ -345,6 +346,219 @@ describe('AttendanceService', () => {
 
       expect(result.errorCount).toBeGreaterThan(0);
       expect(result.errors[0].errors[0]).toContain('must be one of');
+    });
+  });
+
+  describe('findAllPaginated', () => {
+    it('should return paginated attendance records', async () => {
+      const mockRecords = [mockAttendance];
+
+      // Create a proper mock chain
+      const execMock = jest.fn().mockResolvedValue(mockRecords);
+      const limitMock = jest.fn().mockReturnValue({ exec: execMock });
+      const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+      const sortMock = jest.fn().mockReturnValue({ skip: skipMock });
+      mockModel.find.mockReturnValue({ sort: sortMock });
+
+      const countExecMock = jest.fn().mockResolvedValue(1);
+      mockModel.countDocuments.mockReturnValue({ exec: countExecMock });
+
+      const query = { page: 1, limit: 10 };
+      const result = await service.findAllPaginated(query);
+
+      expect(result.data).toEqual(mockRecords);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.limit).toBe(10);
+      expect(result.pagination.total).toBe(1);
+      expect(result.pagination.totalPages).toBe(1);
+    });
+
+    it('should filter by employee_id', async () => {
+      const mockRecords = [mockAttendance];
+
+      const execMock = jest.fn().mockResolvedValue(mockRecords);
+      const limitMock = jest.fn().mockReturnValue({ exec: execMock });
+      const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+      const sortMock = jest.fn().mockReturnValue({ skip: skipMock });
+      mockModel.find.mockReturnValue({ sort: sortMock });
+
+      const countExecMock = jest.fn().mockResolvedValue(1);
+      mockModel.countDocuments.mockReturnValue({ exec: countExecMock });
+
+      const query = { employee_id: 'EMP001', page: 1, limit: 10 };
+      await service.findAllPaginated(query);
+
+      expect(mockModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({ employee_id: 'EMP001' }),
+      );
+    });
+
+    it('should filter by date range', async () => {
+      const mockRecords = [mockAttendance];
+
+      const execMock = jest.fn().mockResolvedValue(mockRecords);
+      const limitMock = jest.fn().mockReturnValue({ exec: execMock });
+      const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+      const sortMock = jest.fn().mockReturnValue({ skip: skipMock });
+      mockModel.find.mockReturnValue({ sort: sortMock });
+
+      const countExecMock = jest.fn().mockResolvedValue(1);
+      mockModel.countDocuments.mockReturnValue({ exec: countExecMock });
+
+      const query = {
+        start_date: '2025-01-01',
+        end_date: '2025-01-31',
+        page: 1,
+        limit: 10,
+      };
+      await service.findAllPaginated(query);
+
+      expect(mockModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          date: expect.objectContaining({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            $gte: expect.any(Date),
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            $lte: expect.any(Date),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('getDailySummary', () => {
+    it('should return daily summary statistics', async () => {
+      const mockRecords = [
+        { ...mockAttendance, status: 'Present' },
+        { ...mockAttendance, status: 'Present' },
+        { ...mockAttendance, status: 'Absent' },
+        { ...mockAttendance, status: 'Late' },
+      ];
+
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRecords),
+      });
+
+      const result = await service.getDailySummary('2025-01-15');
+
+      expect(result.date).toBe('2025-01-15');
+      expect(result.total).toBe(4);
+      expect(result.present).toBe(2);
+      expect(result.absent).toBe(1);
+      expect(result.late).toBe(1);
+      expect(result.presentPercentage).toBe(50);
+    });
+
+    it('should handle empty results', async () => {
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      });
+
+      const result = await service.getDailySummary('2025-01-15');
+
+      expect(result.total).toBe(0);
+      expect(result.presentPercentage).toBe(0);
+    });
+  });
+
+  describe('getStatistics', () => {
+    it('should return comprehensive statistics', async () => {
+      const mockRecords = [
+        {
+          employee_id: 'EMP001',
+          date: new Date('2025-01-15'),
+          status: 'Present',
+          hours_worked: 8,
+          overtime_hours: 0,
+        },
+        {
+          employee_id: 'EMP001',
+          date: new Date('2025-01-16'),
+          status: 'Late',
+          hours_worked: 7,
+          overtime_hours: 0,
+        },
+        {
+          employee_id: 'EMP002',
+          date: new Date('2025-01-15'),
+          status: 'Present',
+          hours_worked: 8,
+          overtime_hours: 2,
+        },
+      ];
+
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRecords),
+      });
+
+      const result = await service.getStatistics('2025-01-15', '2025-01-16');
+
+      expect(result.totalEmployees).toBe(2);
+      expect(result.summary.total).toBe(3);
+      expect(result.summary.present).toBe(2);
+      expect(result.summary.late).toBe(1);
+      expect(result.dailyBreakdown).toBeDefined();
+      expect(result.employeeBreakdown).toBeDefined();
+      expect(result.employeeBreakdown.length).toBe(2);
+    });
+
+    it('should use default date range when not specified', async () => {
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      });
+
+      const result = await service.getStatistics();
+
+      expect(result.dateRange).toBeDefined();
+      expect(result.dateRange.start).toBeDefined();
+      expect(result.dateRange.end).toBeDefined();
+    });
+  });
+
+  describe('exportToExcel', () => {
+    it('should export attendance data to Excel buffer', async () => {
+      const mockRecords = [mockAttendance];
+
+      const execMock = jest.fn().mockResolvedValue(mockRecords);
+      const sortMock = jest.fn().mockReturnValue({ exec: execMock });
+      mockModel.find.mockReturnValue({ sort: sortMock });
+
+      const query = { employee_id: 'EMP001' };
+      const buffer = await service.exportToExcel(query);
+
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+
+    it('should apply filters when exporting', async () => {
+      const mockRecords = [mockAttendance];
+
+      const execMock = jest.fn().mockResolvedValue(mockRecords);
+      const sortMock = jest.fn().mockReturnValue({ exec: execMock });
+      mockModel.find.mockReturnValue({ sort: sortMock });
+
+      const query = {
+        employee_id: 'EMP001',
+        start_date: '2025-01-01',
+        end_date: '2025-01-31',
+        status: 'Present',
+      };
+      await service.exportToExcel(query);
+
+      expect(mockModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employee_id: 'EMP001',
+          status: 'Present',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          date: expect.objectContaining({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            $gte: expect.any(Date),
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            $lte: expect.any(Date),
+          }),
+        }),
+      );
     });
   });
 });

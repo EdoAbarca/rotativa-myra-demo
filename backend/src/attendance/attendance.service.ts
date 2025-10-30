@@ -4,6 +4,11 @@ import { Model } from 'mongoose';
 import { Attendance, AttendanceDocument } from './schemas/attendance.schema';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UploadAttendanceResultDto } from './dto/upload-attendance-result.dto';
+import { QueryAttendanceDto } from './dto/query-attendance.dto';
+import {
+  AttendanceSummaryDto,
+  AttendanceStatisticsDto,
+} from './dto/attendance-summary.dto';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import * as ExcelJS from 'exceljs';
@@ -400,5 +405,306 @@ export class AttendanceService {
         `Failed to process Excel file: ${errorMessage}`,
       );
     }
+  }
+
+  async findAllPaginated(query: QueryAttendanceDto) {
+    const {
+      employee_id,
+      start_date,
+      end_date,
+      status,
+      page = 1,
+      limit = 10,
+      sortBy = 'date',
+      sortOrder = 'desc',
+    } = query;
+
+    // Build filter query
+
+    const filter: Record<string, any> = {};
+
+    if (employee_id) {
+      filter.employee_id = employee_id;
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (start_date || end_date) {
+      filter.date = {};
+      if (start_date) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        filter.date.$gte = new Date(start_date);
+      }
+      if (end_date) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        filter.date.$lte = new Date(end_date);
+      }
+    }
+
+    // Build sort query
+    const sort: Record<string, 1 | -1> = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query with pagination
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.attendanceModel
+        .find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+
+      this.attendanceModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getDailySummary(date: string): Promise<AttendanceSummaryDto> {
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+
+    const records = await this.attendanceModel
+      .find({
+        date: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+      })
+      .exec();
+
+    const total = records.length;
+    const present = records.filter((r) => r.status === 'Present').length;
+    const absent = records.filter((r) => r.status === 'Absent').length;
+    const late = records.filter((r) => r.status === 'Late').length;
+
+    return {
+      date,
+      total,
+      present,
+      absent,
+      late,
+      presentPercentage: total > 0 ? Math.round((present / total) * 100) : 0,
+      absentPercentage: total > 0 ? Math.round((absent / total) * 100) : 0,
+      latePercentage: total > 0 ? Math.round((late / total) * 100) : 0,
+    };
+  }
+
+  async getStatistics(
+    start_date?: string,
+    end_date?: string,
+    employee_id?: string,
+  ): Promise<AttendanceStatisticsDto> {
+    // Build filter
+
+    const filter: Record<string, any> = {};
+
+    if (employee_id) {
+      filter.employee_id = employee_id;
+    }
+
+    // Default to last 30 days if no date range provided
+    const now = new Date();
+    const defaultStartDate = new Date(now);
+    defaultStartDate.setDate(now.getDate() - 30);
+
+    const startDate = start_date ? new Date(start_date) : defaultStartDate;
+    const endDate = end_date ? new Date(end_date) : now;
+
+    filter.date = {
+      $gte: startDate,
+      $lte: endDate,
+    };
+
+    // Get all records in the range
+
+    const records = await this.attendanceModel.find(filter).exec();
+
+    // Calculate overall summary
+    const total = records.length;
+    const present = records.filter((r) => r.status === 'Present').length;
+    const absent = records.filter((r) => r.status === 'Absent').length;
+    const late = records.filter((r) => r.status === 'Late').length;
+
+    const summary: AttendanceSummaryDto = {
+      date: startDate.toISOString().split('T')[0],
+      total,
+      present,
+      absent,
+      late,
+      presentPercentage: total > 0 ? Math.round((present / total) * 100) : 0,
+      absentPercentage: total > 0 ? Math.round((absent / total) * 100) : 0,
+      latePercentage: total > 0 ? Math.round((late / total) * 100) : 0,
+    };
+
+    // Daily breakdown
+    const dailyMap = new Map<
+      string,
+      { present: number; absent: number; late: number }
+    >();
+
+    records.forEach((record) => {
+      const dateKey = new Date(record.date).toISOString().split('T')[0];
+      if (!dailyMap.has(dateKey)) {
+        dailyMap.set(dateKey, { present: 0, absent: 0, late: 0 });
+      }
+      const day = dailyMap.get(dateKey)!;
+      if (record.status === 'Present') day.present++;
+      else if (record.status === 'Absent') day.absent++;
+      else if (record.status === 'Late') day.late++;
+    });
+
+    const dailyBreakdown = Array.from(dailyMap.entries())
+      .map(([date, counts]) => ({ date, ...counts }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Employee breakdown (only if not filtering by employee)
+    let employeeBreakdown: AttendanceStatisticsDto['employeeBreakdown'] = [];
+    if (!employee_id) {
+      const employeeMap = new Map<
+        string,
+        {
+          total_days: number;
+          present_days: number;
+          absent_days: number;
+          late_days: number;
+          total_hours: number;
+          overtime_hours: number;
+        }
+      >();
+
+      records.forEach((record) => {
+        if (!employeeMap.has(record.employee_id)) {
+          employeeMap.set(record.employee_id, {
+            total_days: 0,
+            present_days: 0,
+            absent_days: 0,
+            late_days: 0,
+            total_hours: 0,
+            overtime_hours: 0,
+          });
+        }
+        const emp = employeeMap.get(record.employee_id)!;
+        emp.total_days++;
+        if (record.status === 'Present') emp.present_days++;
+        else if (record.status === 'Absent') emp.absent_days++;
+        else if (record.status === 'Late') emp.late_days++;
+        emp.total_hours += record.hours_worked || 0;
+        emp.overtime_hours += record.overtime_hours || 0;
+      });
+
+      employeeBreakdown = Array.from(employeeMap.entries()).map(
+        ([employee_id, stats]) => ({ employee_id, ...stats }),
+      );
+    }
+
+    // Get unique employees count
+    const uniqueEmployees = new Set(records.map((r) => r.employee_id));
+
+    return {
+      totalEmployees: uniqueEmployees.size,
+      dateRange: {
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0],
+      },
+      summary,
+      dailyBreakdown,
+      employeeBreakdown,
+    };
+  }
+
+  async exportToExcel(query: QueryAttendanceDto): Promise<Buffer> {
+    const {
+      employee_id,
+      start_date,
+      end_date,
+      status,
+      sortBy = 'date',
+      sortOrder = 'desc',
+    } = query;
+
+    // Build filter (same as findAllPaginated but without pagination)
+
+    const filter: Record<string, any> = {};
+
+    if (employee_id) {
+      filter.employee_id = employee_id;
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (start_date || end_date) {
+      filter.date = {};
+      if (start_date) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        filter.date.$gte = new Date(start_date);
+      }
+      if (end_date) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        filter.date.$lte = new Date(end_date);
+      }
+    }
+
+    // Build sort query
+    const sort: Record<string, 1 | -1> = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Get all matching records
+
+    const records = await this.attendanceModel.find(filter).sort(sort).exec();
+
+    // Create workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Attendance Report');
+
+    // Add headers
+    worksheet.columns = [
+      { header: 'Employee ID', key: 'employee_id', width: 15 },
+      { header: 'Date', key: 'date', width: 12 },
+      { header: 'Status', key: 'status', width: 10 },
+      { header: 'Check In', key: 'check_in_time', width: 12 },
+      { header: 'Check Out', key: 'check_out_time', width: 12 },
+      { header: 'Hours Worked', key: 'hours_worked', width: 15 },
+      { header: 'Overtime Hours', key: 'overtime_hours', width: 15 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3D3D3' },
+    };
+
+    // Add data rows
+    records.forEach((record) => {
+      worksheet.addRow({
+        employee_id: record.employee_id,
+        date: new Date(record.date).toISOString().split('T')[0],
+        status: record.status,
+        check_in_time: record.check_in_time || '',
+        check_out_time: record.check_out_time || '',
+        hours_worked: record.hours_worked || 0,
+        overtime_hours: record.overtime_hours || 0,
+      });
+    });
+
+    // Generate buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 }
