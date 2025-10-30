@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SalaryController } from './salary.controller';
 import { SalaryService } from './salary.service';
 import { SalaryRulesService } from './salary-rules.service';
+import { PayrollService } from './payroll.service';
+import { Response } from 'express';
 
 describe('SalaryController', () => {
   let controller: SalaryController;
@@ -30,6 +32,14 @@ describe('SalaryController', () => {
     getActiveRuleForCategory: jest.fn(),
   };
 
+  const mockPayrollService = {
+    generatePayroll: jest.fn(),
+    findAll: jest.fn(),
+    findByMonthYear: jest.fn(),
+    exportToExcel: jest.fn(),
+    delete: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SalaryController],
@@ -41,6 +51,10 @@ describe('SalaryController', () => {
         {
           provide: SalaryRulesService,
           useValue: mockSalaryRulesService,
+        },
+        {
+          provide: PayrollService,
+          useValue: mockPayrollService,
         },
       ],
     }).compile();
@@ -256,6 +270,94 @@ describe('SalaryController', () => {
         message: 'Generated 2 recurring holidays for 2025',
         holidays,
       });
+    });
+  });
+
+  describe('Payroll endpoints', () => {
+    it('should generate payroll', async () => {
+      const generateDto = {
+        month: 1,
+        year: 2025,
+        generated_by: 'admin',
+      };
+
+      const expectedResult = {
+        month: 1,
+        year: 2025,
+        total_employees: 10,
+        total_payroll: 500000,
+      };
+
+      mockPayrollService.generatePayroll.mockResolvedValue(expectedResult);
+
+      const result = await controller.generatePayroll(generateDto);
+
+      expect(mockPayrollService.generatePayroll).toHaveBeenCalledWith(
+        generateDto,
+      );
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should get all payrolls', async () => {
+      const query = { page: 1, limit: 10 };
+      const expectedResult = {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+      };
+
+      mockPayrollService.findAll.mockResolvedValue(expectedResult);
+
+      const result = await controller.getPayrolls(query);
+
+      expect(mockPayrollService.findAll).toHaveBeenCalledWith(query);
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should get payroll by month and year', async () => {
+      const expectedResult = {
+        month: 1,
+        year: 2025,
+        total_employees: 10,
+      };
+
+      mockPayrollService.findByMonthYear.mockResolvedValue(expectedResult);
+
+      const result = await controller.getPayrollByMonthYear('2025', '1');
+
+      expect(mockPayrollService.findByMonthYear).toHaveBeenCalledWith(1, 2025);
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should export payroll to Excel', async () => {
+      const buffer = Buffer.from('test-excel-data');
+      mockPayrollService.exportToExcel.mockResolvedValue(buffer);
+
+      const mockResponse = {
+        set: jest.fn(),
+        send: jest.fn(),
+      } as unknown as Response;
+
+      await controller.exportPayrollToExcel('2025', '1', mockResponse);
+
+      expect(mockPayrollService.exportToExcel).toHaveBeenCalledWith(1, 2025);
+      expect(mockResponse.set).toHaveBeenCalledWith({
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename=payroll-2025-1.xlsx',
+        'Content-Length': buffer.length,
+      });
+      expect(mockResponse.send).toHaveBeenCalledWith(buffer);
+    });
+
+    it('should delete payroll', async () => {
+      mockPayrollService.delete.mockResolvedValue(undefined);
+
+      const result = await controller.deletePayroll('2025', '1');
+
+      expect(mockPayrollService.delete).toHaveBeenCalledWith(1, 2025);
+      expect(result).toEqual({ message: 'Payroll deleted successfully' });
     });
   });
 });

@@ -8,9 +8,12 @@ import {
   Param,
   Delete,
   ValidationPipe,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { SalaryService } from './salary.service';
 import { SalaryRulesService } from './salary-rules.service';
+import { PayrollService } from './payroll.service';
 import { CalculateSalaryDto, QuerySalaryDto } from './dto/salary.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
@@ -20,12 +23,14 @@ import {
   UpdateSalaryRuleDto,
   QuerySalaryRulesDto,
 } from './dto/salary-rule.dto';
+import { GeneratePayrollDto, QueryPayrollDto } from './dto/payroll.dto';
 
 @Controller('salary')
 export class SalaryController {
   constructor(
     private readonly salaryService: SalaryService,
     private readonly salaryRulesService: SalaryRulesService,
+    private readonly payrollService: PayrollService,
   ) {}
 
   @Post('calculate')
@@ -152,5 +157,56 @@ export class SalaryController {
       message: `Generated ${holidays.length} recurring holidays for ${year}`,
       holidays,
     };
+  }
+
+  // Payroll endpoints
+  @Post('payroll/generate')
+  async generatePayroll(
+    @Body(ValidationPipe) generateDto: GeneratePayrollDto,
+  ) {
+    return this.payrollService.generatePayroll(generateDto);
+  }
+
+  @Get('payroll')
+  async getPayrolls(@Query(ValidationPipe) query: QueryPayrollDto) {
+    return this.payrollService.findAll(query);
+  }
+
+  @Get('payroll/:year/:month')
+  async getPayrollByMonthYear(
+    @Param('year') year: string,
+    @Param('month') month: string,
+  ) {
+    return this.payrollService.findByMonthYear(parseInt(month), parseInt(year));
+  }
+
+  @Get('payroll/:year/:month/export')
+  async exportPayrollToExcel(
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.payrollService.exportToExcel(
+      parseInt(month),
+      parseInt(year),
+    );
+    
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename=payroll-${year}-${month}.xlsx`,
+      'Content-Length': buffer.length,
+    });
+    
+    res.send(buffer);
+  }
+
+  @Delete('payroll/:year/:month')
+  async deletePayroll(
+    @Param('year') year: string,
+    @Param('month') month: string,
+  ) {
+    await this.payrollService.delete(parseInt(month), parseInt(year));
+    return { message: 'Payroll deleted successfully' };
   }
 }

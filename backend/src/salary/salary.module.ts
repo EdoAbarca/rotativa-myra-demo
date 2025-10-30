@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { SalaryController } from './salary.controller';
 import { SalaryService } from './salary.service';
 import { SalaryRulesService } from './salary-rules.service';
+import { PayrollService } from './payroll.service';
 import {
   SalaryCalculation,
   SalaryCalculationSchema,
@@ -13,6 +14,7 @@ import {
   SalaryRuleVersion,
   SalaryRuleVersionSchema,
 } from './schemas/salary-rule-version.schema';
+import { Payroll, PayrollSchema } from './schemas/payroll.schema';
 import { EmployeesModule } from '../employees/employees.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 
@@ -23,12 +25,13 @@ import { AttendanceModule } from '../attendance/attendance.module';
       { name: Holiday.name, schema: HolidaySchema },
       { name: SalaryRule.name, schema: SalaryRuleSchema },
       { name: SalaryRuleVersion.name, schema: SalaryRuleVersionSchema },
+      { name: Payroll.name, schema: PayrollSchema },
     ]),
     EmployeesModule,
     AttendanceModule,
   ],
   controllers: [SalaryController],
-  providers: [SalaryService, SalaryRulesService],
-  exports: [SalaryService, SalaryRulesService],
+  providers: [SalaryService, SalaryRulesService, PayrollService],
+  exports: [SalaryService, SalaryRulesService, PayrollService],
 })
 export class SalaryModule {}
