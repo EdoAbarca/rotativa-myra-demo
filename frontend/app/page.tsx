@@ -26,6 +26,12 @@ export default function Home() {
           >
             Go to Employee Management
           </Link>
+          <Link
+            href="/attendance"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-5 text-white transition-colors hover:bg-blue-700 md:w-auto"
+          >
+            Go to Attendance Dashboard
+          </Link>
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <a

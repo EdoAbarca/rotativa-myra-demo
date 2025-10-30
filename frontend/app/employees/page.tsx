@@ -84,7 +84,15 @@ export default function EmployeesPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Employee Management</h1>
+          <div className="flex justify-between items-center mb-2">
+            <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
+            <Link
+              href="/attendance"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              View Attendance Dashboard
+            </Link>
+          </div>
           <p className="text-gray-600">Search, view, and manage employee profiles</p>
         </div>
 
