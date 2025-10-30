@@ -18,10 +18,7 @@ import {
   Notification,
   NotificationSchema,
 } from './schemas/notification.schema';
-import {
-  EmailLog,
-  EmailLogSchema,
-} from './schemas/email-log.schema';
+import { EmailLog, EmailLogSchema } from './schemas/email-log.schema';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { EmployeesModule } from '../employees/employees.module';
 

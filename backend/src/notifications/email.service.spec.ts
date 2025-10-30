@@ -120,7 +120,9 @@ describe('EmailService', () => {
     it('should filter by user_id when provided', async () => {
       await service.getEmailLogs('hr_admin');
 
-      expect(mockEmailLogModel.find).toHaveBeenCalledWith({ user_id: 'hr_admin' });
+      expect(mockEmailLogModel.find).toHaveBeenCalledWith({
+        user_id: 'hr_admin',
+      });
     });
 
     it('should limit results', async () => {

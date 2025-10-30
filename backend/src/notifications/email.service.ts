@@ -5,7 +5,11 @@ import * as nodemailer from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
-import { EmailLog, EmailLogDocument, EmailStatus } from './schemas/email-log.schema';
+import {
+  EmailLog,
+  EmailLogDocument,
+  EmailStatus,
+} from './schemas/email-log.schema';
 
 export interface EmailOptions {
   to: string;
@@ -62,11 +66,11 @@ export class EmailService {
 
   private loadTemplates() {
     const templatesDir = path.join(__dirname, 'templates');
-    
+
     try {
       if (fs.existsSync(templatesDir)) {
         const files = fs.readdirSync(templatesDir);
-        
+
         files.forEach((file) => {
           if (file.endsWith('.hbs')) {
             const templateName = file.replace('.hbs', '');
@@ -81,7 +85,9 @@ export class EmailService {
         this.logger.warn(`Templates directory not found: ${templatesDir}`);
       }
     } catch (error) {
-      this.logger.error(`Error loading email templates: ${error.message}`);
+      this.logger.error(
+        `Error loading email templates: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -102,12 +108,10 @@ export class EmailService {
     return emailLog;
   }
 
-  private async processSendEmail(
-    emailLog: EmailLogDocument,
-  ): Promise<boolean> {
+  private async processSendEmail(emailLog: EmailLogDocument): Promise<boolean> {
     try {
       const template = this.templates.get(emailLog.template);
-      
+
       if (!template) {
         throw new Error(`Template not found: ${emailLog.template}`);
       }
@@ -118,10 +122,12 @@ export class EmailService {
         from: `${process.env.EMAIL_FROM_NAME || 'Rotativa MYRA'} <${process.env.EMAIL_FROM || 'noreply@company.com'}>`,
         to: emailLog.recipient,
         subject: emailLog.subject,
-        html: html,
+        html: String(html),
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = (await this.transporter.sendMail(mailOptions)) as {
+        messageId: string;
+      };
 
       // Update email log
       emailLog.status = EmailStatus.SENT;
@@ -135,13 +141,15 @@ export class EmailService {
 
       return true;
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Failed to send email to ${emailLog.recipient}: ${error.message}`,
+        `Failed to send email to ${emailLog.recipient}: ${errorMessage}`,
       );
 
       // Update email log with error
       emailLog.status = EmailStatus.FAILED;
-      emailLog.error_message = error.message;
+      emailLog.error_message = errorMessage;
       emailLog.retry_count += 1;
 
       // Schedule retry if not exceeded max retries
@@ -150,7 +158,7 @@ export class EmailService {
           Date.now() + this.RETRY_DELAY_MS * emailLog.retry_count,
         );
         this.logger.log(
-          `Email retry scheduled for ${emailLog.recipient} at ${emailLog.next_retry_at}`,
+          `Email retry scheduled for ${emailLog.recipient} at ${emailLog.next_retry_at.toISOString()}`,
         );
       }
 
@@ -161,31 +169,37 @@ export class EmailService {
 
   private startRetryWorker() {
     // Check for failed emails every minute
-    setInterval(async () => {
-      try {
-        const now = new Date();
-        const failedEmails = await this.emailLogModel
-          .find({
-            status: EmailStatus.FAILED,
-            retry_count: { $lt: this.MAX_RETRIES },
-            next_retry_at: { $lte: now },
-          })
-          .limit(10)
-          .exec();
+    const retryWorker = () => {
+      void (async () => {
+        try {
+          const now = new Date();
+          const failedEmails = await this.emailLogModel
+            .find({
+              status: EmailStatus.FAILED,
+              retry_count: { $lt: this.MAX_RETRIES },
+              next_retry_at: { $lte: now },
+            })
+            .limit(10)
+            .exec();
 
-        if (failedEmails.length > 0) {
-          this.logger.log(
-            `Processing ${failedEmails.length} failed emails for retry`,
-          );
+          if (failedEmails.length > 0) {
+            this.logger.log(
+              `Processing ${failedEmails.length} failed emails for retry`,
+            );
 
-          for (const emailLog of failedEmails) {
-            await this.processSendEmail(emailLog);
+            for (const emailLog of failedEmails) {
+              await this.processSendEmail(emailLog);
+            }
           }
+        } catch (error) {
+          this.logger.error(
+            `Error in retry worker: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-      } catch (error) {
-        this.logger.error(`Error in retry worker: ${error.message}`);
-      }
-    }, this.RETRY_DELAY_MS);
+      })();
+    };
+
+    setInterval(retryWorker, this.RETRY_DELAY_MS);
 
     this.logger.log('Email retry worker started');
   }
@@ -229,7 +243,9 @@ export class EmailService {
       this.logger.log('Email service connection verified');
       return true;
     } catch (error) {
-      this.logger.error(`Email service connection failed: ${error.message}`);
+      this.logger.error(
+        `Email service connection failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false;
     }
   }

@@ -24,11 +24,11 @@ export class EmailLog {
   @Prop({ type: Object })
   template_data: Record<string, unknown>; // Data passed to template
 
-  @Prop({ 
-    type: String, 
+  @Prop({
+    type: String,
     enum: Object.values(EmailStatus),
     default: EmailStatus.PENDING,
-    index: true 
+    index: true,
   })
   status: EmailStatus;
 

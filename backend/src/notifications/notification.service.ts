@@ -113,7 +113,10 @@ export class NotificationService {
       await this.emailService.sendEmail({
         to: email,
         subject: `${payload.absence_type === 'late' ? 'Late Arrival' : 'Absence'} Alert - ${payload.employee_name}`,
-        template: payload.absence_type === 'late' ? 'late-arrival-alert' : 'absence-alert',
+        template:
+          payload.absence_type === 'late'
+            ? 'late-arrival-alert'
+            : 'absence-alert',
         context: {
           employee_id: payload.employee_id,
           employee_name: payload.employee_name,
