@@ -244,6 +244,61 @@ export class LeavesService {
     return this.getOrCreateLeaveBalance(employee_id);
   }
 
+  async getAllLeaveBalances(): Promise<LeaveBalanceDocument[]> {
+    return this.leaveBalanceModel.find().exec();
+  }
+
+  async exportBalancesToExcel(): Promise<Buffer> {
+    // Get all leave balances
+    const balances = await this.leaveBalanceModel.find().exec();
+
+    // Create workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Leave Balances');
+
+    // Add headers
+    worksheet.columns = [
+      { header: 'employee_id', key: 'employee_id', width: 15 },
+      { header: 'vacation_balance', key: 'vacation_balance', width: 18 },
+      { header: 'vacation_used', key: 'vacation_used', width: 15 },
+      { header: 'vacation_remaining', key: 'vacation_remaining', width: 20 },
+      { header: 'sick_balance', key: 'sick_balance', width: 15 },
+      { header: 'sick_used', key: 'sick_used', width: 12 },
+      { header: 'sick_remaining', key: 'sick_remaining', width: 18 },
+      { header: 'personal_balance', key: 'personal_balance', width: 18 },
+      { header: 'personal_used', key: 'personal_used', width: 15 },
+      { header: 'personal_remaining', key: 'personal_remaining', width: 20 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3D3D3' },
+    };
+
+    // Add data rows
+    balances.forEach((balance) => {
+      worksheet.addRow({
+        employee_id: balance.employee_id,
+        vacation_balance: balance.vacation_balance,
+        vacation_used: balance.vacation_used,
+        vacation_remaining: balance.vacation_balance - balance.vacation_used,
+        sick_balance: balance.sick_balance,
+        sick_used: balance.sick_used,
+        sick_remaining: balance.sick_balance - balance.sick_used,
+        personal_balance: balance.personal_balance,
+        personal_used: balance.personal_used,
+        personal_remaining: balance.personal_balance - balance.personal_used,
+      });
+    });
+
+    // Generate buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
   private async processRow(
     row: ExcelJS.Row,
     rowNumber: number,

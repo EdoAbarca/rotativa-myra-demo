@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  Param,
   Res,
   StreamableFile,
 } from '@nestjs/common';
@@ -29,8 +30,31 @@ export class LeavesController {
     return this.leavesService.findAllPaginated(query);
   }
 
+  @Get('balances')
+  async getAllBalances() {
+    return this.leavesService.getAllLeaveBalances();
+  }
+
+  @Get('balances/export')
+  async exportBalancesToExcel(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const buffer = await this.leavesService.exportBalancesToExcel();
+
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `leave_balances_${timestamp}.xlsx`;
+
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    return new StreamableFile(buffer);
+  }
+
   @Get('balance/:employee_id')
-  async getBalance(@Query('employee_id') employee_id: string) {
+  async getBalance(@Param('employee_id') employee_id: string) {
     if (!employee_id) {
       throw new BadRequestException('Employee ID is required');
     }

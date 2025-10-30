@@ -10,8 +10,10 @@ describe('LeavesController', () => {
     findAll: jest.fn(),
     findAllPaginated: jest.fn(),
     getLeaveBalance: jest.fn(),
+    getAllLeaveBalances: jest.fn(),
     processExcelUpload: jest.fn(),
     exportToExcel: jest.fn(),
+    exportBalancesToExcel: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -97,6 +99,55 @@ describe('LeavesController', () => {
 
       const result = await controller.getBalance('EMP001');
       expect(result).toEqual(mockBalance);
+    });
+  });
+
+  describe('getAllBalances', () => {
+    it('should return all leave balances', async () => {
+      const mockBalances = [
+        {
+          employee_id: 'EMP001',
+          vacation_balance: 20,
+          sick_balance: 10,
+          personal_balance: 5,
+          vacation_used: 5,
+          sick_used: 2,
+          personal_used: 1,
+        },
+        {
+          employee_id: 'EMP002',
+          vacation_balance: 20,
+          sick_balance: 10,
+          personal_balance: 5,
+          vacation_used: 0,
+          sick_used: 0,
+          personal_used: 0,
+        },
+      ];
+
+      mockLeavesService.getAllLeaveBalances.mockResolvedValue(mockBalances);
+
+      const result = await controller.getAllBalances();
+      expect(result).toEqual(mockBalances);
+      expect(mockLeavesService.getAllLeaveBalances).toHaveBeenCalled();
+    });
+  });
+
+  describe('exportBalancesToExcel', () => {
+    it('should export leave balances to Excel', async () => {
+      const mockBuffer = Buffer.from('test excel data');
+      mockLeavesService.exportBalancesToExcel.mockResolvedValue(mockBuffer);
+
+      const mockResponse = {
+        set: jest.fn(),
+      };
+
+      const result = await controller.exportBalancesToExcel(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        mockResponse as any,
+      );
+      expect(result).toBeInstanceOf(Object);
+      expect(mockLeavesService.exportBalancesToExcel).toHaveBeenCalled();
     });
   });
 
