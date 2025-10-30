@@ -255,14 +255,19 @@ All service and controller methods are covered by unit tests:
 4. Verify balance updates
 5. Test export functionality
 
-## Sample Template Generation
-A sample Excel template can be generated using:
-```bash
-cd backend
-node create-leave-template.js
+## Sample Template
+
+A sample Excel template is included in the repository at:
+```
+backend/sample_leave_import.xlsx
 ```
 
-This creates `sample_leave_import.xlsx` with example data.
+This template contains:
+- All required column headers with proper formatting
+- Three example leave records
+- Header styling for easy identification
+
+You can use this template as a starting point for importing your own leave data.
 
 ## Integration
 The Leave module is integrated with:
