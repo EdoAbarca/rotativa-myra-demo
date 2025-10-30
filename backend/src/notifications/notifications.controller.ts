@@ -20,6 +20,7 @@ import { NotificationService } from './notification.service';
 import { AbsenceDetectionService } from './absence-detection.service';
 import { LateArrivalDetectionService } from './late-arrival-detection.service';
 import { RealtimeNotificationService } from './realtime-notification.service';
+import { EmailService } from './email.service';
 import { UpdateNotificationPreferenceDto } from './dto/update-notification-preference.dto';
 import { UpdateAbsenceAlertDto } from './dto/update-absence-alert.dto';
 import { QueryAbsenceAlertsDto } from './dto/query-absence-alerts.dto';
@@ -33,6 +34,7 @@ export class NotificationsController {
     private readonly absenceDetectionService: AbsenceDetectionService,
     private readonly lateArrivalDetectionService: LateArrivalDetectionService,
     private readonly realtimeNotificationService: RealtimeNotificationService,
+    private readonly emailService: EmailService,
   ) {}
 
   @Get('preferences/:user_id')
@@ -207,6 +209,42 @@ export class NotificationsController {
       success: true,
       message: `Detected ${lateArrivals.length} late arrivals`,
       late_arrivals: lateArrivals,
+    };
+  }
+
+  // Email delivery tracking endpoints
+
+  @Get('email-logs')
+  async getEmailLogs(
+    @Query('user_id') userId?: string,
+    @Query('limit') limit?: number,
+  ) {
+    const logs = await this.emailService.getEmailLogs(userId, limit);
+    return {
+      success: true,
+      count: logs.length,
+      logs,
+    };
+  }
+
+  @Get('email-stats')
+  async getEmailStats() {
+    const stats = await this.emailService.getEmailStats();
+    return {
+      success: true,
+      stats,
+    };
+  }
+
+  @Get('email-connection')
+  async verifyEmailConnection() {
+    const isConnected = await this.emailService.verifyConnection();
+    return {
+      success: true,
+      connected: isConnected,
+      message: isConnected
+        ? 'Email service is connected and ready'
+        : 'Email service is not connected. Check configuration.',
     };
   }
 }

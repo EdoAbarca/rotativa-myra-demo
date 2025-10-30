@@ -5,6 +5,7 @@ import { NotificationService } from './notification.service';
 import { AbsenceDetectionService } from './absence-detection.service';
 import { LateArrivalDetectionService } from './late-arrival-detection.service';
 import { RealtimeNotificationService } from './realtime-notification.service';
+import { EmailService } from './email.service';
 
 describe('NotificationsController', () => {
   let controller: NotificationsController;
@@ -38,6 +39,12 @@ describe('NotificationsController', () => {
     markAsRead: jest.fn(),
   };
 
+  const mockEmailService = {
+    getEmailLogs: jest.fn(),
+    getEmailStats: jest.fn(),
+    verifyConnection: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NotificationsController],
@@ -57,6 +64,10 @@ describe('NotificationsController', () => {
         {
           provide: RealtimeNotificationService,
           useValue: mockRealtimeNotificationService,
+        },
+        {
+          provide: EmailService,
+          useValue: mockEmailService,
         },
       ],
     }).compile();
@@ -209,6 +220,75 @@ describe('NotificationsController', () => {
       );
 
       expect(result).toEqual(stats);
+    });
+  });
+
+  describe('getEmailLogs', () => {
+    it('should return email logs', async () => {
+      const logs = [
+        {
+          recipient: 'hr@company.com',
+          subject: 'Test Email',
+          status: 'sent',
+        },
+      ];
+
+      mockEmailService.getEmailLogs.mockResolvedValue(logs);
+
+      const result = await controller.getEmailLogs();
+
+      expect(result).toEqual({
+        success: true,
+        count: 1,
+        logs,
+      });
+    });
+  });
+
+  describe('getEmailStats', () => {
+    it('should return email statistics', async () => {
+      const stats = {
+        total: 100,
+        sent: 85,
+        failed: 10,
+        pending: 3,
+        queued: 2,
+      };
+
+      mockEmailService.getEmailStats.mockResolvedValue(stats);
+
+      const result = await controller.getEmailStats();
+
+      expect(result).toEqual({
+        success: true,
+        stats,
+      });
+    });
+  });
+
+  describe('verifyEmailConnection', () => {
+    it('should verify email connection', async () => {
+      mockEmailService.verifyConnection.mockResolvedValue(true);
+
+      const result = await controller.verifyEmailConnection();
+
+      expect(result).toEqual({
+        success: true,
+        connected: true,
+        message: 'Email service is connected and ready',
+      });
+    });
+
+    it('should handle connection failure', async () => {
+      mockEmailService.verifyConnection.mockResolvedValue(false);
+
+      const result = await controller.verifyEmailConnection();
+
+      expect(result).toEqual({
+        success: true,
+        connected: false,
+        message: 'Email service is not connected. Check configuration.',
+      });
     });
   });
 });
