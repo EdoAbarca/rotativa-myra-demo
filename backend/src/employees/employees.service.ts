@@ -9,6 +9,7 @@ import { Employee, EmployeeDocument } from './schemas/employee.schema';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { UploadResultDto } from './dto/upload-result.dto';
+import { QueryEmployeesDto } from './dto/query-employees.dto';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import * as ExcelJS from 'exceljs';
@@ -61,6 +62,199 @@ export class EmployeesService {
 
   async findAll(): Promise<Employee[]> {
     return this.employeeModel.find().exec();
+  }
+
+  async findAllPaginated(query: QueryEmployeesDto) {
+    const {
+      page = 1,
+      limit = 10,
+      name,
+      employee_id,
+      department,
+      position,
+      status,
+      sortBy = 'employee_id',
+      sortOrder = 'asc',
+    } = query;
+
+    // Build filter query
+    const filter: Record<string, unknown> = {};
+
+    // Helper function to escape special regex characters
+    const escapeRegex = (str: string): string => {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    if (employee_id) {
+      filter.employee_id = {
+        $regex: escapeRegex(employee_id),
+        $options: 'i',
+      };
+    }
+
+    if (name) {
+      const escapedName = escapeRegex(name);
+      filter.$or = [
+        { first_name: { $regex: escapedName, $options: 'i' } },
+        { last_name: { $regex: escapedName, $options: 'i' } },
+      ];
+    }
+
+    if (department) {
+      filter.department = {
+        $regex: escapeRegex(department),
+        $options: 'i',
+      };
+    }
+
+    if (position) {
+      filter.position = {
+        $regex: escapeRegex(position),
+        $options: 'i',
+      };
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    // Build sort object
+    const sort: Record<string, 1 | -1> = {};
+    if (sortBy === 'name') {
+      sort.first_name = sortOrder === 'asc' ? 1 : -1;
+      sort.last_name = sortOrder === 'asc' ? 1 : -1;
+    } else {
+      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    }
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Execute query with pagination
+    const [employees, total] = await Promise.all([
+      this.employeeModel.find(filter).sort(sort).skip(skip).limit(limit).exec(),
+      this.employeeModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      data: employees,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async exportToExcel(query: QueryEmployeesDto): Promise<Buffer> {
+    // Get all employees matching the filter (without pagination)
+    const {
+      name,
+      employee_id,
+      department,
+      position,
+      status,
+      sortBy = 'employee_id',
+      sortOrder = 'asc',
+    } = query;
+
+    const filter: Record<string, unknown> = {};
+
+    const escapeRegex = (str: string): string => {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    if (employee_id) {
+      filter.employee_id = {
+        $regex: escapeRegex(employee_id),
+        $options: 'i',
+      };
+    }
+
+    if (name) {
+      const escapedName = escapeRegex(name);
+      filter.$or = [
+        { first_name: { $regex: escapedName, $options: 'i' } },
+        { last_name: { $regex: escapedName, $options: 'i' } },
+      ];
+    }
+
+    if (department) {
+      filter.department = {
+        $regex: escapeRegex(department),
+        $options: 'i',
+      };
+    }
+
+    if (position) {
+      filter.position = {
+        $regex: escapeRegex(position),
+        $options: 'i',
+      };
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    // Build sort object
+    const sort: Record<string, 1 | -1> = {};
+    if (sortBy === 'name') {
+      sort.first_name = sortOrder === 'asc' ? 1 : -1;
+      sort.last_name = sortOrder === 'asc' ? 1 : -1;
+    } else {
+      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    }
+
+    const employees = await this.employeeModel.find(filter).sort(sort).exec();
+
+    // Create workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Employees');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'Employee ID', key: 'employee_id', width: 15 },
+      { header: 'First Name', key: 'first_name', width: 20 },
+      { header: 'Last Name', key: 'last_name', width: 20 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Department', key: 'department', width: 20 },
+      { header: 'Position', key: 'position', width: 20 },
+      { header: 'Base Salary', key: 'base_salary', width: 15 },
+      { header: 'Hire Date', key: 'hire_date', width: 15 },
+      { header: 'Status', key: 'status', width: 12 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3D3D3' },
+    };
+
+    // Add data rows
+    employees.forEach((employee) => {
+      worksheet.addRow({
+        employee_id: employee.employee_id,
+        first_name: employee.first_name,
+        last_name: employee.last_name,
+        email: employee.email,
+        department: employee.department,
+        position: employee.position,
+        base_salary: employee.base_salary,
+        hire_date:
+          employee.hire_date instanceof Date
+            ? employee.hire_date.toISOString().split('T')[0]
+            : employee.hire_date,
+        status: employee.status,
+      });
+    });
+
+    // Generate buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 
   async search(params: SearchEmployeesParams): Promise<Employee[]> {

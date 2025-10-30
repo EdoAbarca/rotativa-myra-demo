@@ -8,6 +8,8 @@ describe('EmployeesController', () => {
 
   const mockEmployeesService = {
     findAll: jest.fn(),
+    findAllPaginated: jest.fn(),
+    exportToExcel: jest.fn(),
     search: jest.fn(),
     findByEmployeeId: jest.fn(),
     updateById: jest.fn(),
@@ -35,26 +37,71 @@ describe('EmployeesController', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of employees', async () => {
-      const employees = [
-        {
-          employee_id: 'EMP001',
-          first_name: 'John',
-          last_name: 'Doe',
-          email: 'john.doe@example.com',
-          department: 'Engineering',
-          position: 'Software Engineer',
-          base_salary: 75000,
-          hire_date: new Date('2024-01-15'),
-          status: 'active',
+    it('should return paginated employees', async () => {
+      const paginatedResult = {
+        data: [
+          {
+            employee_id: 'EMP001',
+            first_name: 'John',
+            last_name: 'Doe',
+            email: 'john.doe@example.com',
+            department: 'Engineering',
+            position: 'Software Engineer',
+            base_salary: 75000,
+            hire_date: new Date('2024-01-15'),
+            status: 'active',
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
         },
-      ];
+      };
 
-      mockEmployeesService.findAll.mockResolvedValue(employees);
+      mockEmployeesService.findAllPaginated.mockResolvedValue(paginatedResult);
 
-      const result = await controller.findAll();
-      expect(result).toEqual(employees);
-      expect(mockEmployeesService.findAll).toHaveBeenCalled();
+      const result = await controller.findAll({});
+      expect(result).toEqual(paginatedResult);
+      expect(mockEmployeesService.findAllPaginated).toHaveBeenCalledWith({});
+    });
+
+    it('should return paginated employees with filters', async () => {
+      const paginatedResult = {
+        data: [
+          {
+            employee_id: 'EMP001',
+            first_name: 'John',
+            last_name: 'Doe',
+            email: 'john.doe@example.com',
+            department: 'Engineering',
+            position: 'Software Engineer',
+            base_salary: 75000,
+            hire_date: new Date('2024-01-15'),
+            status: 'active',
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
+      };
+
+      mockEmployeesService.findAllPaginated.mockResolvedValue(paginatedResult);
+
+      const query = {
+        page: 1,
+        limit: 10,
+        department: 'Engineering',
+        status: 'active',
+      };
+
+      const result = await controller.findAll(query);
+      expect(result).toEqual(paginatedResult);
+      expect(mockEmployeesService.findAllPaginated).toHaveBeenCalledWith(query);
     });
   });
 
@@ -133,63 +180,68 @@ describe('EmployeesController', () => {
   });
 
   describe('findAll with search', () => {
-    it('should call search when search parameters are provided', async () => {
-      const employees = [
-        {
-          employee_id: 'EMP001',
-          first_name: 'John',
-          last_name: 'Doe',
-          email: 'john.doe@example.com',
-          department: 'Engineering',
-          position: 'Software Engineer',
-          base_salary: 75000,
-          hire_date: new Date('2024-01-15'),
-          status: 'active',
+    it('should return paginated employees with sorting', async () => {
+      const paginatedResult = {
+        data: [
+          {
+            employee_id: 'EMP001',
+            first_name: 'John',
+            last_name: 'Doe',
+            email: 'john.doe@example.com',
+            department: 'Engineering',
+            position: 'Software Engineer',
+            base_salary: 75000,
+            hire_date: new Date('2024-01-15'),
+            status: 'active',
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
         },
-      ];
+      };
 
-      mockEmployeesService.search.mockResolvedValue(employees);
+      mockEmployeesService.findAllPaginated.mockResolvedValue(paginatedResult);
 
-      const result = await controller.findAll(
-        'John',
-        undefined,
-        undefined,
-        undefined,
-      );
-      expect(result).toEqual(employees);
-      expect(mockEmployeesService.search).toHaveBeenCalledWith({
-        name: 'John',
-        employee_id: undefined,
-        department: undefined,
-        status: undefined,
-      });
+      const query = {
+        sortBy: 'name',
+        sortOrder: 'asc',
+      };
+
+      const result = await controller.findAll(query);
+      expect(result).toEqual(paginatedResult);
+      expect(mockEmployeesService.findAllPaginated).toHaveBeenCalledWith(query);
     });
+  });
 
-    it('should call findAll when no search parameters provided', async () => {
-      const employees = [
-        {
-          employee_id: 'EMP001',
-          first_name: 'John',
-          last_name: 'Doe',
-          email: 'john.doe@example.com',
-          department: 'Engineering',
-          position: 'Software Engineer',
-          base_salary: 75000,
-          hire_date: new Date('2024-01-15'),
-          status: 'active',
-        },
-      ];
+  describe('exportToExcel', () => {
+    it('should export employees to Excel', async () => {
+      const mockBuffer = Buffer.from('mock excel data');
+      mockEmployeesService.exportToExcel.mockResolvedValue(mockBuffer);
 
-      mockEmployeesService.findAll.mockResolvedValue(employees);
+      const mockResponse = {
+        set: jest.fn(),
+        send: jest.fn(),
+      };
 
-      const result = await controller.findAll(
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-      );
-      expect(result).toEqual(employees);
-      expect(mockEmployeesService.findAll).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      await controller.exportToExcel({}, mockResponse as any);
+
+      expect(mockEmployeesService.exportToExcel).toHaveBeenCalledWith({});
+
+      expect(mockResponse.set).toHaveBeenCalledWith({
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        'Content-Disposition': expect.stringContaining(
+          'attachment; filename=employees-export-',
+        ),
+        'Content-Length': mockBuffer.length,
+      });
+
+      expect(mockResponse.send).toHaveBeenCalledWith(mockBuffer);
     });
   });
 
