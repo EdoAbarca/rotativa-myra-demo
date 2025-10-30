@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { SalaryService } from './salary.service';
 import { CalculateSalaryDto, QuerySalaryDto } from './dto/salary.dto';
+import { CreateHolidayDto } from './dto/create-holiday.dto';
 
 @Controller('salary')
 export class SalaryController {
@@ -22,12 +23,12 @@ export class SalaryController {
     return this.salaryService.calculateSalary(calculateDto);
   }
 
-  @Get()
+  @Get('calculations')
   async getSalaryCalculations(@Query(ValidationPipe) query: QuerySalaryDto) {
     return this.salaryService.findAll(query);
   }
 
-  @Get(':employee_id/:period_start/:period_end')
+  @Get('calculations/:employee_id/:period_start/:period_end')
   async getSalaryByEmployeeAndPeriod(
     @Param('employee_id') employee_id: string,
     @Param('period_start') period_start: string,
@@ -42,11 +43,13 @@ export class SalaryController {
 
   @Post('holidays')
   async createHoliday(
-    @Body('date') date: string,
-    @Body('name') name: string,
-    @Body('description') description?: string,
+    @Body(ValidationPipe) createHolidayDto: CreateHolidayDto,
   ) {
-    return this.salaryService.createHoliday(date, name, description);
+    return this.salaryService.createHoliday(
+      createHolidayDto.date,
+      createHolidayDto.name,
+      createHolidayDto.description,
+    );
   }
 
   @Get('holidays')

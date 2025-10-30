@@ -107,6 +107,12 @@ describe('SalaryController', () => {
 
   describe('Holiday Management', () => {
     it('should create a holiday', async () => {
+      const createHolidayDto = {
+        date: '2025-12-25',
+        name: 'Christmas',
+        description: 'Christmas Day',
+      };
+
       const holidayData = {
         date: new Date('2025-12-25'),
         name: 'Christmas',
@@ -115,11 +121,7 @@ describe('SalaryController', () => {
 
       mockSalaryService.createHoliday.mockResolvedValue(holidayData);
 
-      const result = await controller.createHoliday(
-        '2025-12-25',
-        'Christmas',
-        'Christmas Day',
-      );
+      const result = await controller.createHoliday(createHolidayDto);
 
       expect(mockSalaryService.createHoliday).toHaveBeenCalledWith(
         '2025-12-25',
