@@ -262,7 +262,7 @@ Features:
 
 The notification service includes mock email sending. To integrate with a real email service:
 
-1. Install email service SDK (e.g., SendGrid, AWS SES, NodeMailer)
+1. Install email service SDK (e.g., SendGrid, AWS SES, Nodemailer)
 2. Update `notification.service.ts`:
 
 ```typescript
