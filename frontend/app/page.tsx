@@ -51,6 +51,12 @@ export default function Home() {
             🎉 Holiday Management
           </Link>
           <Link
+            href="/salary-rules"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-indigo-600 px-5 text-white transition-colors hover:bg-indigo-700 md:w-auto"
+          >
+            💰 Salary Calculation Rules
+          </Link>
+          <Link
             href="/notification-preferences"
             className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 text-white transition-colors hover:bg-green-700 md:w-auto"
           >

@@ -26,6 +26,13 @@ export class Employee {
   @Prop({ required: true, type: Number })
   base_salary: number;
 
+  @Prop({
+    required: true,
+    default: 'general',
+    index: true,
+  })
+  category: string; // e.g., 'general', 'manager', 'executive', 'intern'
+
   @Prop({ required: true, type: Date, index: true })
   hire_date: Date;
 

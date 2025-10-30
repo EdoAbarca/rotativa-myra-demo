@@ -10,14 +10,23 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { SalaryService } from './salary.service';
+import { SalaryRulesService } from './salary-rules.service';
 import { CalculateSalaryDto, QuerySalaryDto } from './dto/salary.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { QueryHolidaysDto } from './dto/query-holidays.dto';
+import {
+  CreateSalaryRuleDto,
+  UpdateSalaryRuleDto,
+  QuerySalaryRulesDto,
+} from './dto/salary-rule.dto';
 
 @Controller('salary')
 export class SalaryController {
-  constructor(private readonly salaryService: SalaryService) {}
+  constructor(
+    private readonly salaryService: SalaryService,
+    private readonly salaryRulesService: SalaryRulesService,
+  ) {}
 
   @Post('calculate')
   async calculateSalary(
@@ -44,6 +53,51 @@ export class SalaryController {
     );
   }
 
+  // Salary Rules endpoints
+  @Post('rules')
+  async createSalaryRule(@Body(ValidationPipe) createDto: CreateSalaryRuleDto) {
+    return this.salaryRulesService.createRule(createDto);
+  }
+
+  @Get('rules')
+  async getSalaryRules(@Query(ValidationPipe) query: QuerySalaryRulesDto) {
+    return this.salaryRulesService.findAll(query);
+  }
+
+  @Get('rules/:ruleName')
+  async getSalaryRule(@Param('ruleName') ruleName: string) {
+    return this.salaryRulesService.findByName(ruleName);
+  }
+
+  @Put('rules/:ruleName')
+  async updateSalaryRule(
+    @Param('ruleName') ruleName: string,
+    @Body(ValidationPipe) updateDto: UpdateSalaryRuleDto,
+  ) {
+    return this.salaryRulesService.updateRule(ruleName, updateDto);
+  }
+
+  @Delete('rules/:ruleName')
+  async deleteSalaryRule(
+    @Param('ruleName') ruleName: string,
+    @Query('deletedBy') deletedBy?: string,
+  ) {
+    await this.salaryRulesService.deleteRule(ruleName, deletedBy);
+    return { message: 'Salary rule deleted successfully' };
+  }
+
+  @Get('rules/:ruleName/versions')
+  async getSalaryRuleVersions(@Param('ruleName') ruleName: string) {
+    return this.salaryRulesService.getVersionHistory(ruleName);
+  }
+
+  @Post('rules/initialize-defaults')
+  async initializeDefaultRules() {
+    await this.salaryRulesService.createDefaultRules();
+    return { message: 'Default salary rules initialized successfully' };
+  }
+
+  // Holiday endpoints
   @Post('holidays')
   async createHoliday(
     @Body(ValidationPipe) createHolidayDto: CreateHolidayDto,

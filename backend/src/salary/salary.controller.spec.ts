@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SalaryController } from './salary.controller';
 import { SalaryService } from './salary.service';
+import { SalaryRulesService } from './salary-rules.service';
 
 describe('SalaryController', () => {
   let controller: SalaryController;
@@ -18,6 +19,17 @@ describe('SalaryController', () => {
     generateRecurringHolidays: jest.fn(),
   };
 
+  const mockSalaryRulesService = {
+    createRule: jest.fn(),
+    findAll: jest.fn(),
+    findByName: jest.fn(),
+    updateRule: jest.fn(),
+    deleteRule: jest.fn(),
+    getVersionHistory: jest.fn(),
+    createDefaultRules: jest.fn(),
+    getActiveRuleForCategory: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SalaryController],
@@ -25,6 +37,10 @@ describe('SalaryController', () => {
         {
           provide: SalaryService,
           useValue: mockSalaryService,
+        },
+        {
+          provide: SalaryRulesService,
+          useValue: mockSalaryRulesService,
         },
       ],
     }).compile();
