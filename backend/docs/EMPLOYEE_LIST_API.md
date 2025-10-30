@@ -37,8 +37,8 @@ Retrieves a paginated list of employees with filtering and sorting capabilities.
       "base_salary": 75000,
       "hire_date": "2024-01-15T00:00:00.000Z",
       "status": "active",
-      "createdAt": "2025-10-30T00:00:00.000Z",
-      "updatedAt": "2025-10-30T00:00:00.000Z"
+      "createdAt": "2024-10-30T00:00:00.000Z",
+      "updatedAt": "2024-10-30T00:00:00.000Z"
     }
   ],
   "pagination": {

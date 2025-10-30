@@ -39,3 +39,6 @@ export class Employee {
 }
 
 export const EmployeeSchema = SchemaFactory.createForClass(Employee);
+
+// Add compound index for name-based searches (optimizes $or queries on first_name and last_name)
+EmployeeSchema.index({ first_name: 1, last_name: 1 });
