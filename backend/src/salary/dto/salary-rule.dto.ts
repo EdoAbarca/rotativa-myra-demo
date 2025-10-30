@@ -8,7 +8,6 @@ import {
   Min,
   Max,
   IsDateString,
-  ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

@@ -55,9 +55,7 @@ export class SalaryController {
 
   // Salary Rules endpoints
   @Post('rules')
-  async createSalaryRule(
-    @Body(ValidationPipe) createDto: CreateSalaryRuleDto,
-  ) {
+  async createSalaryRule(@Body(ValidationPipe) createDto: CreateSalaryRuleDto) {
     return this.salaryRulesService.createRule(createDto);
   }
 

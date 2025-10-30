@@ -81,12 +81,10 @@ describe('SalaryRulesService', () => {
 
       const mockSave = jest.fn().mockResolvedValue(savedRule);
 
-      const SalaryRuleConstructor: any = jest
-        .fn()
-        .mockImplementation(() => ({
-          ...createDto,
-          save: mockSave,
-        }));
+      const SalaryRuleConstructor: any = jest.fn().mockImplementation(() => ({
+        ...createDto,
+        save: mockSave,
+      }));
 
       // Preserve original methods
       SalaryRuleConstructor.findOne = mockSalaryRuleModel.findOne;

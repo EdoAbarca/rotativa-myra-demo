@@ -635,7 +635,7 @@ export default function SalaryRulesPage() {
         {!loading && rules.length === 0 && (
           <div className="text-center py-8 bg-white rounded-lg shadow">
             <p className="text-gray-600">
-              No salary rules found. Click "New Rule" or "Initialize Default Rules" to get started.
+              No salary rules found. Click &quot;New Rule&quot; or &quot;Initialize Default Rules&quot; to get started.
             </p>
           </div>
         )}

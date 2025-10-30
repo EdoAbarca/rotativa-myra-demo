@@ -47,11 +47,10 @@ export class SalaryService {
 
     // Get active salary rule for employee category
     const employeeCategory = employee.category || 'general';
-    const salaryRule =
-      await this.salaryRulesService.getActiveRuleForCategory(
-        employeeCategory,
-        startDate,
-      );
+    const salaryRule = await this.salaryRulesService.getActiveRuleForCategory(
+      employeeCategory,
+      startDate,
+    );
 
     // Use rule values or fall back to defaults
     const standardHoursPerDay = salaryRule
