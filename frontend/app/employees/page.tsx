@@ -86,12 +86,20 @@ export default function EmployeesPage() {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
             <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
-            <Link
-              href="/attendance"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              View Attendance Dashboard
-            </Link>
+            <div className="flex gap-3">
+              <Link
+                href="/leave-balances"
+                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
+              >
+                Leave Balances
+              </Link>
+              <Link
+                href="/attendance"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                View Attendance Dashboard
+              </Link>
+            </div>
           </div>
           <p className="text-gray-600">Search, view, and manage employee profiles</p>
         </div>

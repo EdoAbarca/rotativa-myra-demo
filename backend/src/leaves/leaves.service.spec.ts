@@ -31,6 +31,7 @@ describe('LeavesService', () => {
   };
 
   const mockLeaveBalanceModel = {
+    find: jest.fn(),
     findOne: jest.fn(),
     findOneAndUpdate: jest.fn(),
     exec: jest.fn(),
@@ -432,6 +433,65 @@ describe('LeavesService', () => {
       });
 
       const buffer = await service.exportToExcel({});
+
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getAllLeaveBalances', () => {
+    it('should return all leave balances', async () => {
+      const mockBalances = [
+        {
+          employee_id: 'EMP001',
+          vacation_balance: 20,
+          sick_balance: 10,
+          personal_balance: 5,
+          vacation_used: 5,
+          sick_used: 2,
+          personal_used: 1,
+        },
+        {
+          employee_id: 'EMP002',
+          vacation_balance: 20,
+          sick_balance: 10,
+          personal_balance: 5,
+          vacation_used: 0,
+          sick_used: 0,
+          personal_used: 0,
+        },
+      ];
+
+      mockLeaveBalanceModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockBalances),
+      });
+
+      const result = await service.getAllLeaveBalances();
+
+      expect(result).toEqual(mockBalances);
+      expect(mockLeaveBalanceModel.find).toHaveBeenCalled();
+    });
+  });
+
+  describe('exportBalancesToExcel', () => {
+    it('should export leave balances to Excel', async () => {
+      const mockBalances = [
+        {
+          employee_id: 'EMP001',
+          vacation_balance: 20,
+          sick_balance: 10,
+          personal_balance: 5,
+          vacation_used: 5,
+          sick_used: 2,
+          personal_used: 1,
+        },
+      ];
+
+      mockLeaveBalanceModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockBalances),
+      });
+
+      const buffer = await service.exportBalancesToExcel();
 
       expect(buffer).toBeInstanceOf(Buffer);
       expect(buffer.length).toBeGreaterThan(0);

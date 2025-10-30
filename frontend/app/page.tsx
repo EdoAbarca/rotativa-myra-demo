@@ -39,6 +39,12 @@ export default function Home() {
             Absence Detection & Alerts
           </Link>
           <Link
+            href="/leave-balances"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-5 text-white transition-colors hover:bg-teal-700 md:w-auto"
+          >
+            Leave Balance Tracking
+          </Link>
+          <Link
             href="/notification-preferences"
             className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 text-white transition-colors hover:bg-green-700 md:w-auto"
           >
