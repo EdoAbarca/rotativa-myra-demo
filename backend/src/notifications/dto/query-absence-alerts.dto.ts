@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { IsOptional, IsEnum, IsDateString, IsString } from 'class-validator';
 
 export class QueryAbsenceAlertsDto {
   @IsOptional()
@@ -6,6 +6,7 @@ export class QueryAbsenceAlertsDto {
   status?: string;
 
   @IsOptional()
+  @IsString()
   employee_id?: string;
 
   @IsOptional()

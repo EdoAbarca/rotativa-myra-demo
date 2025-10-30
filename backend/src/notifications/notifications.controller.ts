@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  ValidationPipe,
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { AbsenceDetectionService } from './absence-detection.service';
@@ -48,7 +49,10 @@ export class NotificationsController {
   }
 
   @Get('absence-alerts')
-  async getAbsenceAlerts(@Query() query: QueryAbsenceAlertsDto) {
+  async getAbsenceAlerts(
+    @Query(new ValidationPipe({ transform: true }))
+    query: QueryAbsenceAlertsDto,
+  ) {
     return this.absenceDetectionService.findAll(query);
   }
 
