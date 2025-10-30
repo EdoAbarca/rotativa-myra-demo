@@ -2,9 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { EmployeesService } from './employees.service';
 import { Employee } from './schemas/employee.schema';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import * as ExcelJS from 'exceljs';
+import { AuditService } from '../audit/audit.service';
 
 describe('EmployeesService', () => {
   let service: EmployeesService;
@@ -20,6 +21,11 @@ describe('EmployeesService', () => {
     base_salary: 75000,
     hire_date: new Date('2024-01-15'),
     status: 'active',
+  };
+
+  const mockAuditService = {
+    log: jest.fn(),
+    findByEntity: jest.fn(),
   };
 
   const mockModel = {
@@ -48,6 +54,10 @@ describe('EmployeesService', () => {
         {
           provide: getModelToken(Employee.name),
           useValue: mockModelConstructor,
+        },
+        {
+          provide: AuditService,
+          useValue: mockAuditService,
         },
       ],
     }).compile();
@@ -378,6 +388,167 @@ describe('EmployeesService', () => {
 
       expect(result.success).toBe(false);
       expect(result.errorCount).toBe(1);
+    });
+  });
+
+  describe('search', () => {
+    it('should search employees by name', async () => {
+      const employees = [mockEmployee];
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(employees),
+      });
+
+      const result = await service.search({ name: 'John' });
+      expect(result).toEqual(employees);
+      expect(mockModel.find).toHaveBeenCalled();
+    });
+
+    it('should search employees by employee_id', async () => {
+      const employees = [mockEmployee];
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(employees),
+      });
+
+      const result = await service.search({ employee_id: 'EMP001' });
+      expect(result).toEqual(employees);
+      expect(mockModel.find).toHaveBeenCalled();
+    });
+
+    it('should search employees by department', async () => {
+      const employees = [mockEmployee];
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(employees),
+      });
+
+      const result = await service.search({ department: 'Engineering' });
+      expect(result).toEqual(employees);
+      expect(mockModel.find).toHaveBeenCalled();
+    });
+
+    it('should search employees by status', async () => {
+      const employees = [mockEmployee];
+      mockModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(employees),
+      });
+
+      const result = await service.search({ status: 'active' });
+      expect(result).toEqual(employees);
+      expect(mockModel.find).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateById', () => {
+    it('should update an employee by ID', async () => {
+      const updateData = { first_name: 'Jane' };
+      const updatedEmployee = { ...mockEmployee, ...updateData };
+
+      mockModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockEmployee),
+      });
+
+      mockModel.findOneAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedEmployee),
+      });
+
+      const result = await service.updateById('EMP001', updateData);
+      expect(result).toEqual(updatedEmployee);
+      expect(mockAuditService.log).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when employee not found', async () => {
+      mockModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.updateById('NONEXISTENT', { first_name: 'Jane' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deactivate', () => {
+    it('should deactivate an employee', async () => {
+      const deactivatedEmployee = { ...mockEmployee, status: 'inactive' };
+
+      mockModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockEmployee),
+      });
+
+      mockModel.findOneAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(deactivatedEmployee),
+      });
+
+      const result = await service.deactivate(
+        'EMP001',
+        'hr-employee',
+        'Resigned',
+      );
+      expect(result.status).toBe('inactive');
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'deactivate',
+          reason: 'Resigned',
+        }),
+      );
+    });
+
+    it('should throw NotFoundException when employee not found', async () => {
+      mockModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.deactivate('NONEXISTENT')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw BadRequestException if employee already inactive', async () => {
+      const inactiveEmployee = { ...mockEmployee, status: 'inactive' };
+
+      mockModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(inactiveEmployee),
+      });
+
+      await expect(service.deactivate('EMP001')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('getAuditLogs', () => {
+    it('should return audit logs for an employee', async () => {
+      const auditLogs = [
+        {
+          entity_type: 'Employee',
+          entity_id: 'EMP001',
+          action: 'create',
+          changes: mockEmployee,
+          performed_by: 'system',
+        },
+      ];
+
+      mockModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockEmployee),
+      });
+
+      mockAuditService.findByEntity.mockResolvedValue(auditLogs);
+
+      const result = await service.getAuditLogs('EMP001');
+      expect(result).toEqual(auditLogs);
+      expect(mockAuditService.findByEntity).toHaveBeenCalledWith(
+        'Employee',
+        'EMP001',
+      );
+    });
+
+    it('should throw NotFoundException when employee not found', async () => {
+      mockModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.getAuditLogs('NONEXISTENT')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

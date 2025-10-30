@@ -1,12 +1,18 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Employee, EmployeeDocument } from './schemas/employee.schema';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { UploadResultDto } from './dto/upload-result.dto';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import * as ExcelJS from 'exceljs';
+import { AuditService } from '../audit/audit.service';
 
 interface RowData {
   employee_id?: string;
@@ -20,19 +26,78 @@ interface RowData {
   status?: string;
 }
 
+export interface SearchEmployeesParams {
+  name?: string;
+  employee_id?: string;
+  department?: string;
+  status?: string;
+}
+
 @Injectable()
 export class EmployeesService {
   constructor(
     @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
+    private auditService: AuditService,
   ) {}
 
-  async create(createEmployeeDto: CreateEmployeeDto): Promise<Employee> {
+  async create(
+    createEmployeeDto: CreateEmployeeDto,
+    performedBy = 'system',
+  ): Promise<Employee> {
     const createdEmployee = new this.employeeModel(createEmployeeDto);
-    return createdEmployee.save();
+    const saved = await createdEmployee.save();
+
+    // Log the creation
+    await this.auditService.log({
+      entity_type: 'Employee',
+      entity_id: saved.employee_id,
+      action: 'create',
+      changes: createEmployeeDto,
+      performed_by: performedBy,
+    });
+
+    return saved;
   }
 
   async findAll(): Promise<Employee[]> {
     return this.employeeModel.find().exec();
+  }
+
+  async search(params: SearchEmployeesParams): Promise<Employee[]> {
+    const query: Record<string, unknown> = {};
+
+    // Helper function to escape special regex characters
+    const escapeRegex = (str: string): string => {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    if (params.employee_id) {
+      query.employee_id = {
+        $regex: escapeRegex(params.employee_id),
+        $options: 'i',
+      };
+    }
+
+    if (params.name) {
+      const escapedName = escapeRegex(params.name);
+      query.$or = [
+        { first_name: { $regex: escapedName, $options: 'i' } },
+        { last_name: { $regex: escapedName, $options: 'i' } },
+      ];
+    }
+
+    if (params.department) {
+      query.department = {
+        $regex: escapeRegex(params.department),
+        $options: 'i',
+      };
+    }
+
+    if (params.status) {
+      query.status = params.status;
+    }
+
+    return this.employeeModel.find(query).exec();
   }
 
   async findByEmployeeId(employee_id: string): Promise<Employee | null> {
@@ -42,10 +107,100 @@ export class EmployeesService {
   async update(
     employee_id: string,
     updateData: Partial<CreateEmployeeDto>,
+    performedBy = 'system',
   ): Promise<Employee | null> {
-    return this.employeeModel
+    // Get the previous values before update
+    const previousEmployee = await this.findByEmployeeId(employee_id);
+
+    const updated = await this.employeeModel
       .findOneAndUpdate({ employee_id }, updateData, { new: true })
       .exec();
+
+    // Log the update if employee was found
+    if (updated && previousEmployee) {
+      const previousValues: Record<string, unknown> = {};
+      const keys = Object.keys(updateData) as Array<keyof typeof updateData>;
+      keys.forEach((key) => {
+        if (key in previousEmployee) {
+          previousValues[key] = previousEmployee[key as keyof Employee];
+        }
+      });
+
+      await this.auditService.log({
+        entity_type: 'Employee',
+        entity_id: employee_id,
+        action: 'update',
+        changes: updateData,
+        previous_values: previousValues,
+        performed_by: performedBy,
+      });
+    }
+
+    return updated;
+  }
+
+  async updateById(
+    employee_id: string,
+    updateEmployeeDto: UpdateEmployeeDto,
+    performedBy = 'hr-employee',
+  ): Promise<Employee> {
+    const employee = await this.findByEmployeeId(employee_id);
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employee_id} not found`);
+    }
+
+    const updated = await this.update(
+      employee_id,
+      updateEmployeeDto,
+      performedBy,
+    );
+    if (!updated) {
+      throw new NotFoundException(`Employee with ID ${employee_id} not found`);
+    }
+
+    return updated;
+  }
+
+  async deactivate(
+    employee_id: string,
+    performedBy = 'hr-employee',
+    reason?: string,
+  ): Promise<Employee> {
+    const employee = await this.findByEmployeeId(employee_id);
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employee_id} not found`);
+    }
+
+    if (employee.status === 'inactive') {
+      throw new BadRequestException('Employee is already inactive');
+    }
+
+    const updated = await this.employeeModel
+      .findOneAndUpdate({ employee_id }, { status: 'inactive' }, { new: true })
+      .exec();
+
+    if (updated) {
+      await this.auditService.log({
+        entity_type: 'Employee',
+        entity_id: employee_id,
+        action: 'deactivate',
+        changes: { status: 'inactive' },
+        previous_values: { status: employee.status },
+        performed_by: performedBy,
+        reason,
+      });
+    }
+
+    return updated!;
+  }
+
+  async getAuditLogs(employee_id: string) {
+    const employee = await this.findByEmployeeId(employee_id);
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employee_id} not found`);
+    }
+
+    return this.auditService.findByEntity('Employee', employee_id);
   }
 
   private async processRow(
