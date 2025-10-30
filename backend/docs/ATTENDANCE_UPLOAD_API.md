@@ -175,14 +175,17 @@ curl http://localhost:3001/attendance
 
 ### Hours Calculation
 - **Standard Work Day:** 8 hours
-- **Hours Worked:** Calculated from check_in_time to check_out_time (max 8 hours)
+- **Hours Worked:** The first 8 hours of time worked (capped at 8 hours maximum)
 - **Overtime Hours:** Any hours beyond 8 hours
 - **Absent Status:** Both hours_worked and overtime_hours are set to 0
 
+**Calculation Logic:**
+When check-in and check-out times are provided, the system calculates total working hours. The first 8 hours count as regular hours_worked (up to a maximum of 8), and any time beyond that counts as overtime_hours.
+
 **Example Calculations:**
-- Check-in: 09:00, Check-out: 17:00 → hours_worked: 8, overtime_hours: 0
-- Check-in: 09:00, Check-out: 19:00 → hours_worked: 8, overtime_hours: 2
-- Check-in: 09:00, Check-out: 14:00 → hours_worked: 5, overtime_hours: 0
+- Check-in: 09:00, Check-out: 17:00 (8 hours total) → hours_worked: 8, overtime_hours: 0
+- Check-in: 09:00, Check-out: 19:00 (10 hours total) → hours_worked: 8, overtime_hours: 2
+- Check-in: 09:00, Check-out: 14:00 (5 hours total) → hours_worked: 5, overtime_hours: 0
 - Status: Absent → hours_worked: 0, overtime_hours: 0
 
 ## Error Handling
