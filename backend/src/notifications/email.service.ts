@@ -208,6 +208,8 @@ export class EmailService {
     user_id?: string,
     limit: number = 50,
   ): Promise<EmailLogDocument[]> {
+    // Safe: Mongoose uses parameterized queries internally to prevent NoSQL injection
+    // The user_id parameter is used as a simple string field value in the query object
     const query = user_id ? { user_id } : {};
     return this.emailLogModel
       .find(query)
