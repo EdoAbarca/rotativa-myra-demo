@@ -8,16 +8,15 @@ import {
 import { Holiday, HolidayDocument } from './schemas/holiday.schema';
 import { EmployeesService } from '../employees/employees.service';
 import { AttendanceService } from '../attendance/attendance.service';
+import { SalaryRulesService } from './salary-rules.service';
 import { CalculateSalaryDto, QuerySalaryDto } from './dto/salary.dto';
 
 @Injectable()
 export class SalaryService {
-  // Standard working hours per day
-  private readonly STANDARD_HOURS_PER_DAY = 8;
-  // Overtime rate multiplier
-  private readonly OVERTIME_RATE_MULTIPLIER = 1.5;
-  // Working days per month (average)
-  private readonly WORKING_DAYS_PER_MONTH = 22;
+  // Fallback constants if no rule is configured
+  private readonly DEFAULT_STANDARD_HOURS_PER_DAY = 8;
+  private readonly DEFAULT_OVERTIME_RATE_MULTIPLIER = 1.5;
+  private readonly DEFAULT_WORKING_DAYS_PER_MONTH = 22;
 
   constructor(
     @InjectModel(SalaryCalculation.name)
@@ -26,6 +25,7 @@ export class SalaryService {
     private holidayModel: Model<HolidayDocument>,
     private employeesService: EmployeesService,
     private attendanceService: AttendanceService,
+    private salaryRulesService: SalaryRulesService,
   ) {}
 
   /**
@@ -44,6 +44,25 @@ export class SalaryService {
 
     const startDate = new Date(period_start);
     const endDate = new Date(period_end);
+
+    // Get active salary rule for employee category
+    const employeeCategory = employee.category || 'general';
+    const salaryRule =
+      await this.salaryRulesService.getActiveRuleForCategory(
+        employeeCategory,
+        startDate,
+      );
+
+    // Use rule values or fall back to defaults
+    const standardHoursPerDay = salaryRule
+      ? salaryRule.standard_hours_per_day
+      : this.DEFAULT_STANDARD_HOURS_PER_DAY;
+    const overtimeMultiplier = salaryRule
+      ? salaryRule.overtime_multiplier
+      : this.DEFAULT_OVERTIME_RATE_MULTIPLIER;
+    const workingDaysPerMonth = salaryRule
+      ? salaryRule.working_days_per_month
+      : this.DEFAULT_WORKING_DAYS_PER_MONTH;
 
     // Calculate working days in the period (excluding weekends)
     const workingDaysInPeriod = this.calculateWorkingDays(startDate, endDate);
@@ -79,10 +98,17 @@ export class SalaryService {
     // In a real system, this would come from a leave management system
     const approvedLeaveDays = 0;
 
-    // Calculate rates
-    const dailyRate = this.calculateDailyRate(employee.base_salary);
-    const hourlyRate = this.calculateHourlyRate(employee.base_salary);
-    const overtimeRate = hourlyRate * this.OVERTIME_RATE_MULTIPLIER;
+    // Calculate rates using configured values
+    const dailyRate = this.calculateDailyRate(
+      employee.base_salary,
+      workingDaysPerMonth,
+    );
+    const hourlyRate = this.calculateHourlyRate(
+      employee.base_salary,
+      workingDaysPerMonth,
+      standardHoursPerDay,
+    );
+    const overtimeRate = hourlyRate * overtimeMultiplier;
 
     // Calculate base salary earned (proportional to days worked)
     const daysWorked = presentDays;
@@ -220,18 +246,26 @@ export class SalaryService {
   /**
    * Calculate daily rate from monthly salary
    */
-  private calculateDailyRate(monthlySalary: number): number {
-    return (
-      Math.round((monthlySalary / this.WORKING_DAYS_PER_MONTH) * 100) / 100
-    );
+  private calculateDailyRate(
+    monthlySalary: number,
+    workingDaysPerMonth: number,
+  ): number {
+    return Math.round((monthlySalary / workingDaysPerMonth) * 100) / 100;
   }
 
   /**
    * Calculate hourly rate from monthly salary
    */
-  private calculateHourlyRate(monthlySalary: number): number {
-    const dailyRate = this.calculateDailyRate(monthlySalary);
-    return Math.round((dailyRate / this.STANDARD_HOURS_PER_DAY) * 100) / 100;
+  private calculateHourlyRate(
+    monthlySalary: number,
+    workingDaysPerMonth: number,
+    standardHoursPerDay: number,
+  ): number {
+    const dailyRate = this.calculateDailyRate(
+      monthlySalary,
+      workingDaysPerMonth,
+    );
+    return Math.round((dailyRate / standardHoursPerDay) * 100) / 100;
   }
 
   /**

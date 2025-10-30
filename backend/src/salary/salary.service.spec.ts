@@ -8,6 +8,7 @@ import { SalaryCalculation } from './schemas/salary-calculation.schema';
 import { Holiday } from './schemas/holiday.schema';
 import { EmployeesService } from '../employees/employees.service';
 import { AttendanceService } from '../attendance/attendance.service';
+import { SalaryRulesService } from './salary-rules.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('SalaryService', () => {
@@ -41,6 +42,10 @@ describe('SalaryService', () => {
     findAllPaginated: jest.fn(),
   };
 
+  const mockSalaryRulesService = {
+    getActiveRuleForCategory: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,6 +65,10 @@ describe('SalaryService', () => {
         {
           provide: AttendanceService,
           useValue: mockAttendanceService,
+        },
+        {
+          provide: SalaryRulesService,
+          useValue: mockSalaryRulesService,
         },
       ],
     }).compile();
@@ -89,6 +98,7 @@ describe('SalaryService', () => {
 
     it('should calculate base salary correctly for full month', async () => {
       mockEmployeesService.findByEmployeeId.mockResolvedValue(mockEmployee);
+      mockSalaryRulesService.getActiveRuleForCategory.mockResolvedValue(null);
       mockHolidayModel.find.mockReturnValue({
         exec: jest.fn().mockResolvedValue([]),
       });
@@ -141,6 +151,7 @@ describe('SalaryService', () => {
 
     it('should calculate overtime at 1.5x rate', async () => {
       mockEmployeesService.findByEmployeeId.mockResolvedValue(mockEmployee);
+      mockSalaryRulesService.getActiveRuleForCategory.mockResolvedValue(null);
       mockHolidayModel.find.mockReturnValue({
         exec: jest.fn().mockResolvedValue([]),
       });
@@ -195,6 +206,7 @@ describe('SalaryService', () => {
 
     it('should deduct absences from salary', async () => {
       mockEmployeesService.findByEmployeeId.mockResolvedValue(mockEmployee);
+      mockSalaryRulesService.getActiveRuleForCategory.mockResolvedValue(null);
       mockHolidayModel.find.mockReturnValue({
         exec: jest.fn().mockResolvedValue([]),
       });
@@ -265,6 +277,7 @@ describe('SalaryService', () => {
 
     it('should not deduct absences on holidays', async () => {
       mockEmployeesService.findByEmployeeId.mockResolvedValue(mockEmployee);
+      mockSalaryRulesService.getActiveRuleForCategory.mockResolvedValue(null);
 
       // Mock a holiday on Jan 15
       const holidays = [
@@ -335,6 +348,7 @@ describe('SalaryService', () => {
 
     it('should throw NotFoundException for invalid employee', async () => {
       mockEmployeesService.findByEmployeeId.mockResolvedValue(null);
+      mockSalaryRulesService.getActiveRuleForCategory.mockResolvedValue(null);
 
       await expect(
         service.calculateSalary({
@@ -347,6 +361,7 @@ describe('SalaryService', () => {
 
     it('should update existing salary calculation', async () => {
       mockEmployeesService.findByEmployeeId.mockResolvedValue(mockEmployee);
+      mockSalaryRulesService.getActiveRuleForCategory.mockResolvedValue(null);
       mockHolidayModel.find.mockReturnValue({
         exec: jest.fn().mockResolvedValue([]),
       });
