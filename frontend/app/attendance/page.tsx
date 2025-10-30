@@ -414,8 +414,8 @@ export default function AttendanceDashboardPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(props: { name: string; percent: number }) => {
-                        const { name, percent } = props;
+                      label={(props: unknown) => {
+                        const { name, percent } = props as { name: string; percent: number };
                         return `${name}: ${(percent * 100).toFixed(0)}%`;
                       }}
                       outerRadius={80}
