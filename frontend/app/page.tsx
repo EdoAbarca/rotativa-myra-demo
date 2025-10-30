@@ -45,6 +45,12 @@ export default function Home() {
             Leave Balance Tracking
           </Link>
           <Link
+            href="/holidays"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-orange-600 px-5 text-white transition-colors hover:bg-orange-700 md:w-auto"
+          >
+            🎉 Holiday Management
+          </Link>
+          <Link
             href="/notification-preferences"
             className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 text-white transition-colors hover:bg-green-700 md:w-auto"
           >
