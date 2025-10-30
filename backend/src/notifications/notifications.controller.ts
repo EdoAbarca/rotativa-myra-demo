@@ -10,18 +10,29 @@ import {
   HttpStatus,
   NotFoundException,
   ValidationPipe,
+  Sse,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { Observable } from 'rxjs';
+import type { MessageEvent } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { AbsenceDetectionService } from './absence-detection.service';
+import { LateArrivalDetectionService } from './late-arrival-detection.service';
+import { RealtimeNotificationService } from './realtime-notification.service';
 import { UpdateNotificationPreferenceDto } from './dto/update-notification-preference.dto';
 import { UpdateAbsenceAlertDto } from './dto/update-absence-alert.dto';
 import { QueryAbsenceAlertsDto } from './dto/query-absence-alerts.dto';
+import { QueryNotificationsDto } from './dto/query-notifications.dto';
+import { UpdateNotificationDto } from './dto/update-notification.dto';
 
 @Controller('notifications')
 export class NotificationsController {
   constructor(
     private readonly notificationService: NotificationService,
     private readonly absenceDetectionService: AbsenceDetectionService,
+    private readonly lateArrivalDetectionService: LateArrivalDetectionService,
+    private readonly realtimeNotificationService: RealtimeNotificationService,
   ) {}
 
   @Get('preferences/:user_id')
@@ -83,5 +94,119 @@ export class NotificationsController {
       throw new NotFoundException(`Absence alert with ID ${id} not found`);
     }
     return alert;
+  }
+
+  // Real-time notification endpoints
+
+  @Sse('stream/:user_id')
+  streamNotifications(
+    @Param('user_id') userId: string,
+    @Res() response: Response,
+  ): Observable<MessageEvent> {
+    response.on('close', () => {
+      this.realtimeNotificationService.unsubscribe(userId);
+    });
+
+    return this.realtimeNotificationService.subscribe(userId);
+  }
+
+  // Notification history endpoints
+
+  @Get('history/:user_id')
+  async getNotificationHistory(
+    @Param('user_id') userId: string,
+    @Query(new ValidationPipe({ transform: true }))
+    query: QueryNotificationsDto,
+  ) {
+    return this.realtimeNotificationService.getNotifications(userId, query);
+  }
+
+  @Get('history/:user_id/statistics')
+  async getNotificationStatistics(@Param('user_id') userId: string) {
+    return this.realtimeNotificationService.getStatistics(userId);
+  }
+
+  @Put('history/:user_id/:notification_id')
+  async updateNotification(
+    @Param('user_id') userId: string,
+    @Param('notification_id') notificationId: string,
+    @Body() updateDto: UpdateNotificationDto,
+  ) {
+    const notification =
+      await this.realtimeNotificationService.updateNotification(
+        notificationId,
+        userId,
+        updateDto,
+      );
+
+    if (!notification) {
+      throw new NotFoundException(
+        `Notification with ID ${notificationId} not found`,
+      );
+    }
+
+    return notification;
+  }
+
+  @Put('history/:user_id/mark-all-read')
+  @HttpCode(HttpStatus.OK)
+  async markAllAsRead(@Param('user_id') userId: string) {
+    const count = await this.realtimeNotificationService.markAllAsRead(userId);
+    return {
+      success: true,
+      message: `Marked ${count} notifications as read`,
+      count,
+    };
+  }
+
+  @Put('history/:user_id/:notification_id/mark-read')
+  @HttpCode(HttpStatus.OK)
+  async markAsRead(
+    @Param('user_id') userId: string,
+    @Param('notification_id') notificationId: string,
+  ) {
+    const notification = await this.realtimeNotificationService.markAsRead(
+      notificationId,
+      userId,
+    );
+
+    if (!notification) {
+      throw new NotFoundException(
+        `Notification with ID ${notificationId} not found`,
+      );
+    }
+
+    return {
+      success: true,
+      message: 'Notification marked as read',
+      notification,
+    };
+  }
+
+  // Late arrival detection
+
+  @Post('detect-late-arrivals')
+  @HttpCode(HttpStatus.OK)
+  async detectLateArrivals(@Query('date') date?: string) {
+    const lateArrivals =
+      await this.lateArrivalDetectionService.detectLateArrivals(date);
+
+    // Send notifications for late arrivals
+    for (const arrival of lateArrivals) {
+      await this.notificationService.notifyLateArrival(
+        arrival.employee_id,
+        arrival.employee_name,
+        arrival.date,
+        arrival.expected_time,
+        arrival.actual_time,
+        arrival.minutes_late,
+      );
+    }
+
+    return {
+      success: true,
+      message: `Detected ${lateArrivals.length} late arrivals`,
+      late_arrivals: lateArrivals,
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -6,6 +6,7 @@ import {
   NotificationPreferenceDocument,
 } from './schemas/notification-preference.schema';
 import { UpdateNotificationPreferenceDto } from './dto/update-notification-preference.dto';
+import { RealtimeNotificationService } from './realtime-notification.service';
 
 export interface NotificationPayload {
   employee_id: string;
@@ -22,6 +23,8 @@ export class NotificationService {
   constructor(
     @InjectModel(NotificationPreference.name)
     private notificationPreferenceModel: Model<NotificationPreferenceDocument>,
+    @Inject(forwardRef(() => RealtimeNotificationService))
+    private realtimeNotificationService: RealtimeNotificationService,
   ) {}
 
   async getPreferences(
@@ -125,7 +128,7 @@ export class NotificationService {
     payload: NotificationPayload,
   ): boolean {
     try {
-      // Mock in-app notification - in production, this could push to a WebSocket, notification queue, etc.
+      // Send real-time notification
       this.logger.log(`Sending in-app notification to user ${user_id}`);
       this.logger.log(`Message: ${payload.message}`);
       this.logger.log(
@@ -133,8 +136,24 @@ export class NotificationService {
       );
       this.logger.log(`Date: ${payload.absence_date}`);
 
-      // In production, you might store this in a notifications collection
-      // or push to a WebSocket/SSE connection
+      // Send via real-time notification service
+      this.realtimeNotificationService
+        .sendRealTimeNotification(
+          user_id,
+          payload.absence_type,
+          `Absence Alert - ${payload.employee_name}`,
+          payload.message,
+          {
+            employee_id: payload.employee_id,
+            employee_name: payload.employee_name,
+            absence_date: payload.absence_date,
+          },
+          'warning',
+        )
+        .catch((error) => {
+          this.logger.error(`Failed to send real-time notification: ${error}`);
+        });
+
       return true;
     } catch (error) {
       this.logger.error(`Failed to send in-app notification: ${error}`);
@@ -162,6 +181,65 @@ export class NotificationService {
 
     for (const user_id of hrUsers) {
       await this.sendNotification(user_id, payload);
+    }
+  }
+
+  async notifyLateArrival(
+    employee_id: string,
+    employee_name: string,
+    date: string,
+    expected_time: string,
+    actual_time: string,
+    minutes_late: number,
+  ): Promise<void> {
+    // Get all HR users
+    const hrUsers = ['hr_admin'];
+
+    for (const user_id of hrUsers) {
+      const preferences = await this.getOrCreatePreferences(user_id);
+
+      // Check if late arrival notifications are enabled
+      if (!preferences.notification_types.includes('late')) {
+        this.logger.log(
+          `Late arrival notifications not enabled for user ${user_id}`,
+        );
+        continue;
+      }
+
+      const message = `Employee ${employee_name} (${employee_id}) arrived ${minutes_late} minutes late on ${date}. Expected: ${expected_time}, Actual: ${actual_time}`;
+
+      // Send email notification
+      if (preferences.email_enabled) {
+        this.sendEmailNotification(
+          preferences.email_address || `${user_id}@company.com`,
+          {
+            employee_id,
+            employee_name,
+            absence_date: date,
+            absence_type: 'late',
+            message,
+          },
+        );
+      }
+
+      // Send real-time in-app notification
+      if (preferences.in_app_enabled) {
+        await this.realtimeNotificationService.sendRealTimeNotification(
+          user_id,
+          'late',
+          `Late Arrival - ${employee_name}`,
+          message,
+          {
+            employee_id,
+            employee_name,
+            date,
+            expected_time,
+            actual_time,
+            minutes_late,
+          },
+          'warning',
+        );
+      }
     }
   }
 }

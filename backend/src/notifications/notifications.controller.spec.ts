@@ -3,6 +3,8 @@ import { NotFoundException } from '@nestjs/common';
 import { NotificationsController } from './notifications.controller';
 import { NotificationService } from './notification.service';
 import { AbsenceDetectionService } from './absence-detection.service';
+import { LateArrivalDetectionService } from './late-arrival-detection.service';
+import { RealtimeNotificationService } from './realtime-notification.service';
 
 describe('NotificationsController', () => {
   let controller: NotificationsController;
@@ -10,6 +12,7 @@ describe('NotificationsController', () => {
   const mockNotificationService = {
     getOrCreatePreferences: jest.fn(),
     updatePreferences: jest.fn(),
+    notifyLateArrival: jest.fn(),
   };
 
   const mockAbsenceDetectionService = {
@@ -18,6 +21,21 @@ describe('NotificationsController', () => {
     findById: jest.fn(),
     updateAlert: jest.fn(),
     getStatistics: jest.fn(),
+  };
+
+  const mockLateArrivalDetectionService = {
+    detectLateArrivals: jest.fn(),
+  };
+
+  const mockRealtimeNotificationService = {
+    subscribe: jest.fn(),
+    unsubscribe: jest.fn(),
+    sendRealTimeNotification: jest.fn(),
+    getNotifications: jest.fn(),
+    getStatistics: jest.fn(),
+    updateNotification: jest.fn(),
+    markAllAsRead: jest.fn(),
+    markAsRead: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -31,6 +49,14 @@ describe('NotificationsController', () => {
         {
           provide: AbsenceDetectionService,
           useValue: mockAbsenceDetectionService,
+        },
+        {
+          provide: LateArrivalDetectionService,
+          useValue: mockLateArrivalDetectionService,
+        },
+        {
+          provide: RealtimeNotificationService,
+          useValue: mockRealtimeNotificationService,
         },
       ],
     }).compile();
