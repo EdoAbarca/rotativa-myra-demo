@@ -88,6 +88,7 @@ export default function LeaveBalancesPage() {
   const calculateRemaining = (balance: number, used: number) => balance - used;
 
   const getBalanceColor = (remaining: number, total: number) => {
+    if (total === 0) return 'text-gray-600';
     const percentage = (remaining / total) * 100;
     if (percentage <= 25) return 'text-red-600 font-semibold';
     if (percentage <= 50) return 'text-yellow-600 font-medium';

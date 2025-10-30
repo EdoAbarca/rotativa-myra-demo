@@ -77,7 +77,11 @@ export default function EmployeeLeaveHistoryPage() {
   const calculateDays = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
+    // Ensure end is after start
+    if (end < start) {
+      return 0;
+    }
+    const diffTime = end.getTime() - start.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;
   };
