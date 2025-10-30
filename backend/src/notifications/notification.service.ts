@@ -1,0 +1,167 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  NotificationPreference,
+  NotificationPreferenceDocument,
+} from './schemas/notification-preference.schema';
+import { UpdateNotificationPreferenceDto } from './dto/update-notification-preference.dto';
+
+export interface NotificationPayload {
+  employee_id: string;
+  employee_name?: string;
+  absence_date: string;
+  absence_type: string;
+  message: string;
+}
+
+@Injectable()
+export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
+  constructor(
+    @InjectModel(NotificationPreference.name)
+    private notificationPreferenceModel: Model<NotificationPreferenceDocument>,
+  ) {}
+
+  async getPreferences(
+    user_id: string,
+  ): Promise<NotificationPreferenceDocument | null> {
+    return this.notificationPreferenceModel.findOne({ user_id }).exec();
+  }
+
+  async getOrCreatePreferences(
+    user_id: string,
+  ): Promise<NotificationPreferenceDocument> {
+    let preferences = await this.getPreferences(user_id);
+
+    if (!preferences) {
+      // Create default preferences
+      const created = await this.notificationPreferenceModel.create({
+        user_id,
+        email_enabled: true,
+        in_app_enabled: true,
+        notification_types: ['absence', 'late'],
+      });
+      preferences = created;
+    }
+
+    return preferences;
+  }
+
+  async updatePreferences(
+    user_id: string,
+    updateDto: UpdateNotificationPreferenceDto,
+  ): Promise<NotificationPreferenceDocument> {
+    const preferences = await this.getOrCreatePreferences(user_id);
+
+    Object.assign(preferences, updateDto);
+    return preferences.save();
+  }
+
+  async sendNotification(
+    user_id: string,
+    payload: NotificationPayload,
+  ): Promise<{ email_sent: boolean; in_app_sent: boolean }> {
+    const preferences = await this.getOrCreatePreferences(user_id);
+
+    const result = {
+      email_sent: false,
+      in_app_sent: false,
+    };
+
+    // Check if notification type is enabled
+    if (
+      !preferences.notification_types.includes(payload.absence_type) &&
+      !preferences.notification_types.includes('absence')
+    ) {
+      this.logger.log(
+        `Notification type ${payload.absence_type} not enabled for user ${user_id}`,
+      );
+      return result;
+    }
+
+    // Send email notification
+    if (preferences.email_enabled) {
+      result.email_sent = this.sendEmailNotification(
+        preferences.email_address || `${user_id}@company.com`,
+        payload,
+      );
+    }
+
+    // Send in-app notification
+    if (preferences.in_app_enabled) {
+      result.in_app_sent = this.sendInAppNotification(user_id, payload);
+    }
+
+    return result;
+  }
+
+  private sendEmailNotification(
+    email: string,
+    payload: NotificationPayload,
+  ): boolean {
+    try {
+      // Mock email sending for now - in production, integrate with email service like SendGrid, SES, etc.
+      this.logger.log(`Sending email to ${email}`);
+      this.logger.log(`Subject: Absence Alert - ${payload.employee_name}`);
+      this.logger.log(`Message: ${payload.message}`);
+      this.logger.log(
+        `Employee: ${payload.employee_name} (${payload.employee_id})`,
+      );
+      this.logger.log(`Date: ${payload.absence_date}`);
+      this.logger.log(`Type: ${payload.absence_type}`);
+
+      // Simulate email sending
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send email: ${error}`);
+      return false;
+    }
+  }
+
+  private sendInAppNotification(
+    user_id: string,
+    payload: NotificationPayload,
+  ): boolean {
+    try {
+      // Mock in-app notification - in production, this could push to a WebSocket, notification queue, etc.
+      this.logger.log(`Sending in-app notification to user ${user_id}`);
+      this.logger.log(`Message: ${payload.message}`);
+      this.logger.log(
+        `Employee: ${payload.employee_name} (${payload.employee_id})`,
+      );
+      this.logger.log(`Date: ${payload.absence_date}`);
+
+      // In production, you might store this in a notifications collection
+      // or push to a WebSocket/SSE connection
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send in-app notification: ${error}`);
+      return false;
+    }
+  }
+
+  async notifyAbsence(
+    employee_id: string,
+    employee_name: string,
+    absence_date: string,
+    absence_type: string = 'Absent',
+  ): Promise<void> {
+    // Get all HR users (for now, we'll use a default user 'hr_admin')
+    // In production, this would query for all users with HR role
+    const hrUsers = ['hr_admin'];
+
+    const payload: NotificationPayload = {
+      employee_id,
+      employee_name,
+      absence_date,
+      absence_type: absence_type.toLowerCase(),
+      message: `Employee ${employee_name} (${employee_id}) has an unexcused absence on ${absence_date}`,
+    };
+
+    for (const user_id of hrUsers) {
+      await this.sendNotification(user_id, payload);
+    }
+  }
+}
