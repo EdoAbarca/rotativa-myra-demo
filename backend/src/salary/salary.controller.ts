@@ -10,7 +10,7 @@ import {
   ValidationPipe,
   Res,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { SalaryService } from './salary.service';
 import { SalaryRulesService } from './salary-rules.service';
 import { PayrollService } from './payroll.service';

@@ -40,13 +40,15 @@ export class PayrollService {
     const periodEnd = new Date(year, month, 0); // Last day of the month
 
     // Get all active employees
-    const employees = await this.employeesService.findAll({
+    const employeesResult = await this.employeesService.findAllPaginated({
       status: 'active',
       page: 1,
       limit: 10000, // Get all employees
     });
 
-    if (employees.data.length === 0) {
+    const employees = employeesResult.data;
+
+    if (employees.length === 0) {
       throw new BadRequestException('No active employees found');
     }
 
@@ -59,7 +61,7 @@ export class PayrollService {
     let totalPayroll = 0;
 
     // Calculate salary for each employee
-    for (const employee of employees.data) {
+    for (const employee of employees) {
       try {
         const warnings: string[] = [];
         let hasIncompleteData = false;
@@ -164,11 +166,15 @@ export class PayrollService {
 
     // Update or create payroll
     if (existingPayroll && force_regenerate) {
-      return this.payrollModel.findOneAndUpdate(
+      const updated = await this.payrollModel.findOneAndUpdate(
         { month, year },
         payrollData,
         { new: true },
       );
+      if (!updated) {
+        throw new Error('Failed to update payroll');
+      }
+      return updated;
     } else {
       return this.payrollModel.create(payrollData);
     }
@@ -291,10 +297,11 @@ export class PayrollService {
 
     // Add summary section
     worksheet.addRow([]);
-    const summaryStartRow = worksheet.lastRow.number + 1;
+    const summaryStartRow = worksheet.lastRow?.number || 1;
+    const summaryRow = summaryStartRow + 1;
     
     worksheet.addRow(['Summary']);
-    worksheet.getRow(summaryStartRow).font = { bold: true, size: 14 };
+    worksheet.getRow(summaryRow).font = { bold: true, size: 14 };
     
     worksheet.addRow(['Total Employees:', payroll.total_employees]);
     worksheet.addRow([
@@ -307,7 +314,7 @@ export class PayrollService {
     worksheet.addRow(['Total Payroll:', payroll.total_payroll]);
 
     // Format summary values
-    for (let i = summaryStartRow + 2; i <= summaryStartRow + 6; i++) {
+    for (let i = summaryRow + 2; i <= summaryRow + 6; i++) {
       worksheet.getRow(i).getCell(2).numFmt = '$#,##0.00';
       worksheet.getRow(i).getCell(1).font = { bold: true };
     }

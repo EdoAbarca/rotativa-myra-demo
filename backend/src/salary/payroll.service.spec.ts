@@ -35,7 +35,7 @@ describe('PayrollService', () => {
     };
 
     mockEmployeesService = {
-      findAll: jest.fn(),
+      findAllPaginated: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -78,11 +78,14 @@ describe('PayrollService', () => {
 
     it('should throw BadRequestException if no active employees found', async () => {
       mockPayrollModel.findOne.mockResolvedValue(null);
-      mockEmployeesService.findAll.mockResolvedValue({
+      mockEmployeesService.findAllPaginated.mockResolvedValue({
         data: [],
-        total: 0,
-        page: 1,
-        limit: 10000,
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 10000,
+          totalPages: 0,
+        },
       });
 
       await expect(
@@ -95,7 +98,7 @@ describe('PayrollService', () => {
 
     it('should generate payroll for all active employees', async () => {
       mockPayrollModel.findOne.mockResolvedValue(null);
-      mockEmployeesService.findAll.mockResolvedValue({
+      mockEmployeesService.findAllPaginated.mockResolvedValue({
         data: [
           {
             employee_id: 'EMP001',
@@ -112,9 +115,12 @@ describe('PayrollService', () => {
             status: 'active',
           },
         ],
-        total: 2,
-        page: 1,
-        limit: 10000,
+        pagination: {
+          total: 2,
+          page: 1,
+          limit: 10000,
+          totalPages: 1,
+        },
       });
 
       mockSalaryService.calculateSalary
@@ -185,7 +191,7 @@ describe('PayrollService', () => {
 
     it('should mark employees with incomplete data and add warnings', async () => {
       mockPayrollModel.findOne.mockResolvedValue(null);
-      mockEmployeesService.findAll.mockResolvedValue({
+      mockEmployeesService.findAllPaginated.mockResolvedValue({
         data: [
           {
             employee_id: 'EMP001',
@@ -195,9 +201,12 @@ describe('PayrollService', () => {
             status: 'active',
           },
         ],
-        total: 1,
-        page: 1,
-        limit: 10000,
+        pagination: {
+          total: 1,
+          page: 1,
+          limit: 10000,
+          totalPages: 1,
+        },
       });
 
       mockSalaryService.calculateSalary.mockResolvedValue({
@@ -249,7 +258,7 @@ describe('PayrollService', () => {
     it('should regenerate payroll if force_regenerate is true', async () => {
       const existingPayroll = { month: 1, year: 2025 };
       mockPayrollModel.findOne.mockResolvedValue(existingPayroll);
-      mockEmployeesService.findAll.mockResolvedValue({
+      mockEmployeesService.findAllPaginated.mockResolvedValue({
         data: [
           {
             employee_id: 'EMP001',
@@ -259,9 +268,12 @@ describe('PayrollService', () => {
             status: 'active',
           },
         ],
-        total: 1,
-        page: 1,
-        limit: 10000,
+        pagination: {
+          total: 1,
+          page: 1,
+          limit: 10000,
+          totalPages: 1,
+        },
       });
 
       mockSalaryService.calculateSalary.mockResolvedValue({
@@ -296,7 +308,7 @@ describe('PayrollService', () => {
 
     it('should handle calculation errors gracefully', async () => {
       mockPayrollModel.findOne.mockResolvedValue(null);
-      mockEmployeesService.findAll.mockResolvedValue({
+      mockEmployeesService.findAllPaginated.mockResolvedValue({
         data: [
           {
             employee_id: 'EMP001',
@@ -306,9 +318,12 @@ describe('PayrollService', () => {
             status: 'active',
           },
         ],
-        total: 1,
-        page: 1,
-        limit: 10000,
+        pagination: {
+          total: 1,
+          page: 1,
+          limit: 10000,
+          totalPages: 1,
+        },
       });
 
       mockSalaryService.calculateSalary.mockRejectedValue(
