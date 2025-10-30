@@ -197,8 +197,12 @@ export class PayrollService {
     const { month, year, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: any = {};
+    interface PayrollFilter {
+      month?: number;
+      year?: number;
+    }
+
+    const filter: PayrollFilter = {};
     if (month) filter.month = month;
     if (year) filter.year = year;
 
