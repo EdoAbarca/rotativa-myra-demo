@@ -8,31 +8,32 @@ export class Employee {
   @Prop({ required: true, unique: true, index: true })
   employee_id: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   first_name: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   last_name: string;
 
   @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   department: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   position: string;
 
   @Prop({ required: true, type: Number })
   base_salary: number;
 
-  @Prop({ required: true, type: Date })
+  @Prop({ required: true, type: Date, index: true })
   hire_date: Date;
 
   @Prop({
     required: true,
     enum: ['active', 'inactive', 'on_leave'],
     default: 'active',
+    index: true,
   })
   status: string;
 }
